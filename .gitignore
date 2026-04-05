@@ -1,0 +1,20 @@
+# Dataset (large binary files)
+VAN_ex/dataset/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Matplotlib/output
+*.png
+*.jpg
