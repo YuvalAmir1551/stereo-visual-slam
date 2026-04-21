@@ -1,4 +1,4 @@
-# Dataset (large binary files)
+# Dataset
 VAN_ex/dataset/
 
 # macOS
@@ -14,7 +14,3 @@ venv/
 # IDE
 .vscode/
 .idea/
-
-# Matplotlib/output
-*.png
-*.jpg
