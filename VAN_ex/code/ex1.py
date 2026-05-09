@@ -5,14 +5,10 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch
 
-from stereo_utils import (
-    read_images,
-    detect_and_compute,
-    match_descriptors_knn,
-    apply_ratio_test,
-)
+from dataset import read_images
+from features import extract_features, match_descriptors_knn, apply_ratio_test
 
-ALGORITHM = 'ORB'
+DETECTOR = 'ORB'
 N_FEATURES = 5000
 RATIO_THRESHOLD = 0.7
 
@@ -83,8 +79,8 @@ def plot_rejected_match(img_left, img_right, kp_left, kp_right, match, zoom=60):
 
 def q1(img_left, img_right):
     """Q1.1: Detect keypoints and display them on both images."""
-    kp_left, desc_left = detect_and_compute(img_left, algorithm=ALGORITHM, n_features=N_FEATURES)
-    kp_right, desc_right = detect_and_compute(img_right, algorithm=ALGORITHM, n_features=N_FEATURES)
+    kp_left, desc_left = extract_features(img_left, detector=DETECTOR, n_features=N_FEATURES)
+    kp_right, desc_right = extract_features(img_right, detector=DETECTOR, n_features=N_FEATURES)
 
     print(f"Keypoints detected — Left: {len(kp_left)}, Right: {len(kp_right)}")
     plot_keypoints(img_left, img_right, kp_left, kp_right)
@@ -102,7 +98,7 @@ def q2(desc_left):
 
 def q3(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
     """Q1.3: Match descriptors and present 20 random matches."""
-    knn_matches = match_descriptors_knn(desc_left, desc_right, algorithm=ALGORITHM, k=2)
+    knn_matches = match_descriptors_knn(desc_left, desc_right, detector=DETECTOR, k=2)
     best_matches = [m for m, _ in knn_matches]
     print(f"Total matches: {len(best_matches)}")
     plot_matches(img_left, img_right, kp_left, kp_right, best_matches,
@@ -111,7 +107,7 @@ def q3(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
 
 def q4(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
     """Q1.4: Apply ratio test, show filtered matches, find a correct rejected match."""
-    knn_matches = match_descriptors_knn(desc_left, desc_right, algorithm=ALGORITHM, k=2)
+    knn_matches = match_descriptors_knn(desc_left, desc_right, detector=DETECTOR, k=2)
     accepted, rejected = apply_ratio_test(knn_matches, ratio=RATIO_THRESHOLD)
 
     print(f"Ratio threshold: {RATIO_THRESHOLD}")
