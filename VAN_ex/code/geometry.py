@@ -58,3 +58,51 @@ def triangulate_cv2(P_left, P_right, pts_left, pts_right):
     X_h = cv2.triangulatePoints(P_left, P_right, pts_left, pts_right)  # 4xN
     X = (X_h[:3] / X_h[3]).T
     return X
+
+
+# ex3
+def rodriguez_to_mat(rvec, tvec):
+    """Assemble a 3x4 [R | t] extrinsic from a Rodrigues rotation vector and a translation."""
+    R, _ = cv2.Rodrigues(rvec)
+    t = np.asarray(tvec, dtype=np.float64).reshape(3, 1)
+    return np.hstack((R, t))
+
+
+# ex3
+def camera_center(Rt):
+    """World-frame centre of a camera with extrinsic [R | t]: C = −R^T t.
+
+    The identity [R|t] @ (C, 1)^T = 0 (the camera origin in its own frame is
+    zero) gives R C + t = 0, hence C = −R^T t.
+    """
+    R, t = Rt[:, :3], Rt[:, 3]
+    return -R.T @ t
+
+
+# ex3
+def compose_extrinsics(Rt_AB, Rt_BC):
+    """Compose two extrinsics so that the result transforms frame A directly into frame C.
+
+    For Rt_AB(x) = R1 x + t1 (A → B) and Rt_BC(x) = R2 x + t2 (B → C),
+    the chained map is Rt_AC(x) = R2 R1 x + (R2 t1 + t2), i.e. the extrinsic
+    of C expressed in A's coordinates.
+    """
+    R1, t1 = Rt_AB[:, :3], Rt_AB[:, 3]
+    R2, t2 = Rt_BC[:, :3], Rt_BC[:, 3]
+    R = R2 @ R1
+    t = R2 @ t1 + t2
+    return np.hstack((R, t.reshape(3, 1)))
+
+
+# ex3
+def project(K, Rt, X):
+    """Project Nx3 points X through a camera with intrinsics K and extrinsic [R | t].
+
+    Points behind the camera (negative depth after the extrinsic transform)
+    are still returned with a division-by-z, so callers that care about
+    physical validity should pair this with a depth check.
+    """
+    X = np.asarray(X, dtype=np.float64).reshape(-1, 3)
+    Xh = np.column_stack([X, np.ones(len(X))])
+    xh = (K @ Rt @ Xh.T).T
+    return xh[:, :2] / xh[:, 2:3]

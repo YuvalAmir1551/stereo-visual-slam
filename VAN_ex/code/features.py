@@ -107,31 +107,73 @@ def pts_from_matches(kp_left, kp_right, matches):
 
 
 # ex2
-def rectified_stereo_filter(kp_left, kp_right, matches, y_threshold=2.0):
-    """Reject matches that violate the rectified-stereo y-alignment constraint.
+def rectified_stereo_filter(kp_left, kp_right, matches,
+                            y_threshold=2.0, x_min_disparity=None):
+    """Reject matches that violate the rectified-stereo geometry.
 
-    On a rectified pair, corresponding points share the same image row, so
-    |y_left - y_right| should be near zero. Matches whose vertical deviation
-    exceeds `y_threshold` pixels are treated as outliers.
+    Two checks (the X one is optional):
+      • |y_left − y_right| ≤ y_threshold — epipolar alignment. On a rectified
+        pair corresponding points share the same image row, so |Δy| should be
+        near zero.
+      • x_left − x_right > x_min_disparity — positive-disparity sanity check.
+        A real point in front of the camera satisfies x_l > x_r (ex2.4);
+        requiring a small margin above 0 also drops very-far points whose
+        sub-noise disparity would triangulate to garbage. Skipped if
+        `x_min_disparity` is None.
 
     Args:
         kp_left, kp_right: Keypoint lists from the two images.
         matches: Iterable of cv2.DMatch (typically the best match per left kp).
         y_threshold: Maximum allowed |Δy| in pixels.
+        x_min_disparity: Minimum required disparity x_l − x_r in pixels, or
+            None to disable the X check (ex2 default behaviour).
 
     Returns:
-        inliers: List of DMatch with |Δy| <= y_threshold.
-        outliers: List of DMatch with |Δy| > y_threshold.
+        inliers: List of DMatch passing both checks.
+        outliers: List of DMatch failing at least one check.
         dy: 1-D numpy array of |Δy| values for every input match (same order).
     """
     inliers, outliers, dy = [], [], []
     for m in matches:
-        y_l = kp_left[m.queryIdx].pt[1]
-        y_r = kp_right[m.trainIdx].pt[1]
-        d = abs(y_l - y_r)
-        dy.append(d)
-        if d <= y_threshold:
-            inliers.append(m)
-        else:
+        pl = kp_left[m.queryIdx].pt
+        pr = kp_right[m.trainIdx].pt
+        d_y = abs(pl[1] - pr[1])
+        dy.append(d_y)
+        if d_y > y_threshold:
             outliers.append(m)
+            continue
+        if x_min_disparity is not None and (pl[0] - pr[0]) <= x_min_disparity:
+            outliers.append(m)
+            continue
+        inliers.append(m)
     return inliers, outliers, np.array(dy)
+
+
+# ex3
+def consensus_matches(stereo0, stereo1, cross):
+    """Find keypoint correspondences visible in all four images of two stereo pairs.
+
+    A consensus is built when:
+      • A left0 keypoint has a stereo partner on right0 (entry in `stereo0`).
+      • The same left0 keypoint has a cross-frame partner on left1 (entry in `cross`).
+      • That left1 keypoint has a stereo partner on right1 (entry in `stereo1`).
+
+    Args:
+        stereo0: DMatch list with queryIdx into kp_left0, trainIdx into kp_right0.
+        stereo1: DMatch list with queryIdx into kp_left1, trainIdx into kp_right1.
+        cross:   DMatch list with queryIdx into kp_left0, trainIdx into kp_left1.
+
+    Returns:
+        idx0: indices into `stereo0` of consensus matches.
+        idx1: indices into `stereo1`, paired one-to-one with `idx0`.
+    """
+    l0_to_s0 = {m.queryIdx: i for i, m in enumerate(stereo0)}
+    l1_to_s1 = {m.queryIdx: i for i, m in enumerate(stereo1)}
+    i0_list, i1_list = [], []
+    for m in cross:
+        i0 = l0_to_s0.get(m.queryIdx)
+        i1 = l1_to_s1.get(m.trainIdx)
+        if i0 is not None and i1 is not None:
+            i0_list.append(i0)
+            i1_list.append(i1)
+    return np.array(i0_list, dtype=int), np.array(i1_list, dtype=int)

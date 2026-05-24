@@ -13,6 +13,7 @@ so that figures across the project (ex2, ex3, ex4) share the same look.
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 # Default viewing window (metres). 100 m on every axis → cube view.
@@ -110,6 +111,35 @@ def plot_3d_world(X, ax, K=None, img_shape=None, title='',
     ax.set_ylabel('Z — forward (m)')
     ax.set_zlabel('Y (m, +down)')
     ax.view_init(elev=15, azim=-75)
+    if title:
+        ax.set_title(title)
+    return ax
+
+
+# ex3
+def plot_trajectory_xz(positions, gt=None, ax=None, title='',
+                       label_est='Estimated', label_gt='Ground truth'):
+    """Top-down 2D trajectory plot (X right, Z forward) in the CV camera frame.
+
+    Args:
+        positions: Nx3 array of camera centres in the reference frame (typically left0).
+        gt: optional Nx3 ground-truth camera centres in the same frame.
+        ax: optional matplotlib axes; created if not supplied.
+        title: subplot title.
+    """
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 10))
+    ax.plot(positions[:, 0], positions[:, 2], '-', color='steelblue', linewidth=1.2,
+            label=f'{label_est}  (n = {len(positions)})')
+    if gt is not None:
+        ax.plot(gt[:, 0], gt[:, 2], '-', color='orange', linewidth=1.2,
+                label=f'{label_gt}  (n = {len(gt)})')
+    ax.scatter([0], [0], color='black', marker='s', s=40, zorder=5, label='Start')
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Z — forward (m)')
+    ax.set_aspect('equal')
+    ax.grid(alpha=0.3)
+    ax.legend(loc='best')
     if title:
         ax.set_title(title)
     return ax

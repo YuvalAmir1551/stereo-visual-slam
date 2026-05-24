@@ -39,3 +39,24 @@ def read_cameras():
     m1 = np.linalg.inv(K) @ m1
     m2 = np.linalg.inv(K) @ m2
     return K, m1, m2
+
+
+# ex3
+def read_poses():
+    """Read ground-truth extrinsics from ``poses/00.txt``.
+
+    Each line holds 12 numbers in row-major order forming the 3x4 extrinsic
+    [R | t] of that frame's left camera (i.e. T_cam_world, world-to-camera).
+    The camera centre in world coords is therefore −R^T t, not the translation
+    column.
+
+    Returns:
+        Nx3x4 array of extrinsic matrices, one per frame.
+    """
+    path = os.path.join(DATA_PATH, '..', '..', 'poses', '00.txt')
+    poses = []
+    with open(path) as f:
+        for line in f:
+            vals = [float(x) for x in line.split()]
+            poses.append(np.array(vals).reshape(3, 4))
+    return np.array(poses)
