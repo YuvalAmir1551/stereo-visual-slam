@@ -10,16 +10,17 @@ IDENTITY_RT = np.hstack([np.eye(3), np.zeros((3, 1))])
 
 
 # ex3
-def solve_pnp(X, pts2d, K, flags=cv2.SOLVEPNP_AP3P):
+def solve_pnp(X, pts2d, K, flags=cv2.SOLVEPNP_SQPNP):
     """Solve PnP for the extrinsic [R | t] of a camera viewing 3D points X at pixels pts2d.
 
     Args:
         X: Nx3 array of 3D points in the reference frame to which [R | t] will be relative.
         pts2d: Nx2 array of matching pixel coordinates.
         K: 3x3 intrinsic matrix.
-        flags: cv2.solvePnP flag. ``SOLVEPNP_AP3P`` is exactly-4-points and used inside
-            the RANSAC loop; ``SOLVEPNP_ITERATIVE`` accepts ≥ 4 and is used to refine
-            on the inlier set.
+        flags: cv2.solvePnP flag. ``SOLVEPNP_SQPNP`` is the default — it solves the
+            problem as a quadratic program and accepts ≥ 3 correspondences, so the
+            same call serves both the inner RANSAC hypothesis (4 points) and the
+            full-inlier refinement that follows.
 
     Returns:
         3x4 [R | t] matrix, or None if the solver fails / returns a degenerate result.
@@ -70,9 +71,9 @@ def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
     """RANSAC-PnP: find [R | t] of left1 in left0 coords maximizing four-view supporters.
 
     Implements the textbook RANSAC loop ourselves (the spec forbids ``cv2.solvePnPRansac``):
-    sample 4 consensus matches, fit AP3P, score by the four-view supporters mask, keep
+    sample 4 consensus matches, fit SQPNP, score by the four-view supporters mask, keep
     the best, and adaptively reduce the iteration budget as the best inlier ratio grows.
-    Finally refit on the full inlier set with the iterative solver.
+    Finally refit SQPNP on the full inlier set as the spec's refinement step.
 
     Returns:
         Rt_left1: best 3x4 extrinsic, or None if no hypothesis ever succeeded.
@@ -90,7 +91,7 @@ def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
     i = 0
     while i < n_iter:
         idx = rng.choice(n, sample_size, replace=False)
-        Rt = solve_pnp(X0[idx], pts_l1[idx], K, flags=cv2.SOLVEPNP_AP3P)
+        Rt = solve_pnp(X0[idx], pts_l1[idx], K, flags=cv2.SOLVEPNP_SQPNP)
         if Rt is not None:
             mask = supporters_mask(X0, pts_l0, pts_r0, pts_l1, pts_r1,
                                    Rt, K, m_right, threshold)
@@ -110,7 +111,7 @@ def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
         # Spec 3.5: refine the resulting transformation by refitting T on the
         # full inlier set (single pass).
         Rt = solve_pnp(X0[best_mask], pts_l1[best_mask], K,
-                       flags=cv2.SOLVEPNP_ITERATIVE)
+                       flags=cv2.SOLVEPNP_SQPNP)
         if Rt is not None:
             mask = supporters_mask(X0, pts_l0, pts_r0, pts_l1, pts_r1,
                                    Rt, K, m_right, threshold)

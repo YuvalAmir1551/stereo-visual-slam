@@ -3,6 +3,11 @@
 import cv2
 import numpy as np
 
+# Lower-than-default AKAZE detection threshold (default 0.001 → 0.0003).
+# Yields more far-field keypoints near the vanishing point, which empirically
+# tightens the rotation estimate on KITTI 00.
+_AKAZE_THRESHOLD = 0.0003
+
 
 # ex1
 def extract_features(img, detector, n_features=5000):
@@ -20,7 +25,7 @@ def extract_features(img, detector, n_features=5000):
     if detector == 'ORB':
         det = cv2.ORB_create(nfeatures=n_features)
     elif detector == 'AKAZE':
-        det = cv2.AKAZE_create()
+        det = cv2.AKAZE_create(threshold=_AKAZE_THRESHOLD)
     elif detector == 'SIFT':
         det = cv2.SIFT_create(nfeatures=n_features)
     else:
@@ -50,12 +55,19 @@ def match_descriptors_knn(desc_left, desc_right, detector, k=2):
 
 
 # ex1
-def match_descriptors(desc_left, desc_right, detector):
+def match_descriptors(desc_left, desc_right, detector, cross_check=False):
     """Single-best-match descriptor matching (no ratio test).
 
-    Returns a flat list of DMatch objects, one per left descriptor.
+    Args:
+        desc_left, desc_right: Descriptor arrays.
+        detector: Detector name (selects Hamming vs L2 norm).
+        cross_check: If True, return only mutual best matches (each left
+            descriptor must be the best for its matched right descriptor and
+            vice versa). Drops ambiguous pairs cheaply.
+
+    Returns a flat list of DMatch objects.
     """
-    bf = cv2.BFMatcher(_norm_type(detector), crossCheck=False)
+    bf = cv2.BFMatcher(_norm_type(detector), crossCheck=cross_check)
     return bf.match(desc_left, desc_right)
 
 
