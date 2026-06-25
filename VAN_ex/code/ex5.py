@@ -16,34 +16,23 @@ from dataset import read_cameras, read_poses, read_images, DATA_PATH
 from geometry import camera_center, compose_extrinsics
 from tracking_database import TrackingDB
 from bundle import (
-    Rt_to_gtsam_pose, gtsam_pose_to_Rt, relative_extrinsic,
+    Rt_to_gtsam_pose, gtsam_pose_to_Rt,
     stereo_calibration, stereo_camera, link_to_stereo_point,
     select_keyframes_in_calm_frames, cam_key, lm_key,
     build_bundle_window, optimize_bundle, compose_global_poses,
     compute_feature_sizes,
-    PRIOR_NOISE, STEREO_NOISE,
+    STEREO_NOISE,
 )
 
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
 FIGURES_DIR = os.path.join(DOCS_DIR, 'ex5_figures')
 
-AKAZE_THRESHOLD = 0.0001
-import features as _features
-_features._AKAZE_THRESHOLD = AKAZE_THRESHOLD
+TRACKING_DB_BASE = os.path.join(DATA_PATH, 'tracking_db')
+PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
+FEATURE_SIZES_PATH = os.path.join(DATA_PATH, 'feature_sizes.pkl')
 
-TRACKING_DB_BASE = os.path.join(DATA_PATH, 'tracking_db_T0.0001')
-PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses_T0.0001.npy')
-FEATURE_SIZES_PATH = os.path.join(DATA_PATH, 'feature_sizes_T0.0001.pkl')
-
-# Keyframe-selection criterion: cumulative translation since last keyframe.
-# Empirically beat fixed gap=10 (18.13 vs 20.24 m final). Adding a rotation
-# threshold did not help on KITTI 00 because sharp turns coincide with slow
-# segments and the translation trigger already catches them.
-KF_MIN_TRANSLATION = 5.0    # metres
-KF_MIN_ROTATION_DEG = None  # disabled — see comment above
-KF_MAX_FRAMES = 20
-KF_MIN_FRAMES = 10
+KF_MIN_TRANSLATION = 5.0    # metres — keyframe trigger
 
 
 def _save(fig, name):
@@ -140,10 +129,6 @@ def q1(db, pnp_poses, K_stereo, rng=None):
     axes[1].grid(alpha=0.3)
     fig.tight_layout()
     _save(fig, 'q5_1_track_errors')
-
-    print('  Covariance used: noiseModel.Diagonal.Sigmas([1, 1, 1]) — unit '
-          'pixel std on (xL, xR, y).')
-    print('  Factor error = ½‖Δz‖²_Σ. With Σ = I, factor_err = ½·(ΔxL²+ΔxR²+Δy²).')
 
 
 # ex5
@@ -377,7 +362,6 @@ def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     # The anchoring factor is the first one added — by construction it's the prior.
     anchor_factor = graph_last.at(0)
     print(f'  Anchoring factor final error: {anchor_factor.error(result_last):.6e}')
-    print('  (essentially 0 — the tight prior pinned the first frame at identity.)')
 
     # Chain to global frame-0 coordinates.
     abs_kf_Rt = compose_global_poses(relative_kf_Rt)
@@ -498,11 +482,6 @@ def main():
 
     print('\nQ5.1')
     q1(db, pnp_poses, K_stereo)
-
-    print('\nQ5.2 (math, in report — included as a code comment below)')
-    print('  T_A→B has rotation R_B R_A^T and translation t_B − R_B R_A^T t_A.')
-    print('  The extrinsic of B in A’s coordinate system is the same: '
-          '[R_B R_A^T | t_B − R_B R_A^T t_A].')
 
     print('\nQ5.3')
     q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=feature_sizes)

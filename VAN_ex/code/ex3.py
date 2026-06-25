@@ -165,12 +165,6 @@ def q3(K, m_right, consensus, rng):
     print(f"  t = {t}")
     print(f"  ||t|| = {np.linalg.norm(t):.3f} m   (expected ≈ inter-frame baseline)")
 
-    # Answers to the written sub-questions (printed for the report's convenience):
-    print("  • T(x) = R x + t directly transforms a point in left0 coords to left1 coords.")
-    print("  • For A=[I|0], B=[R1|t1], C composed: T_AC(x) = R2 R1 x + (R2 t1 + t2);")
-    print("    extrinsic of C is [R2 R1 | R2 t1 + t2].")
-    print("  • Camera centre in world: from [R|t]·(x,y,z,1)ᵀ = 0  ⇒  (x,y,z)ᵀ = −Rᵀ t.")
-
     centers = np.array([
         camera_center(IDENTITY_RT),                            # left0
         camera_center(m_right),                                # right0

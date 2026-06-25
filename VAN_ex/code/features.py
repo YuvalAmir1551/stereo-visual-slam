@@ -3,10 +3,11 @@
 import cv2
 import numpy as np
 
-# Lower-than-default AKAZE detection threshold (default 0.001 → 0.0003).
+# Lower-than-default AKAZE detection threshold (cv2 default 0.001 → 0.0001).
 # Yields more far-field keypoints near the vanishing point, which empirically
-# tightens the rotation estimate on KITTI 00.
-_AKAZE_THRESHOLD = 0.0003
+# tightens the rotation estimate on KITTI 00 and is required to feed enough
+# tracks into the ex5/ex6 bundle adjustment.
+_AKAZE_THRESHOLD = 0.0001
 
 
 # ex1

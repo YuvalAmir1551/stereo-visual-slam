@@ -93,17 +93,7 @@ def q2(img_left, img_right, kp_left, kp_right, matches):
     """
     inliers, outliers, _ = rectified_stereo_filter(
         kp_left, kp_right, matches, y_threshold=Y_THRESHOLD)
-    n_total = len(matches)
-    n_in = len(inliers)
-    n_out = len(outliers)
-    H = img_left.shape[0]
-    p_keep = 2 * Y_THRESHOLD / H
-    p_reject = 1 - p_keep
-    est_erroneous = n_out / p_reject
-    est_err_accepted = est_erroneous * p_keep
-    print(f"Inliers: {n_in}, outliers: {n_out}")
-    print(f"Uniform model: p_reject={p_reject*100:.2f}%, "
-          f"est_erroneous≈{est_erroneous:.0f}, est_err_accepted≈{est_err_accepted:.1f}")
+    print(f"Inliers: {len(inliers)}, outliers: {len(outliers)}")
 
     fig = plot_inlier_outlier(img_left, img_right, kp_left, kp_right, inliers, outliers,
                               suptitle='Q2.2 — Inliers (orange) on top of outliers (cyan)')

@@ -87,10 +87,11 @@ def build_db(n_frames, verbose_every=200):
         img_l, img_r = read_images(i)
         feats_curr, links_curr = _stereo_for_db(img_l, img_r)
 
-        # Cross-frame match with mutual best-match (crossCheck) — kills
-        # ambiguous pairs cheaply; RANSAC then handles the remaining outliers.
+        # Cross-frame match: one best match per previous-frame descriptor.
+        # TrackingDB.add_frame requires len(matches) == prev-frame feature count,
+        # so we cannot pre-filter here with crossCheck — RANSAC handles outliers.
         cross = match_descriptors(feats_prev, feats_curr, DETECTOR,
-                                  cross_check=True)
+                                  cross_check=False)
 
         pts_l_prev, pts_r_prev = _links_to_pixels(links_prev)
         pts_l_curr, pts_r_curr = _links_to_pixels(links_curr)
@@ -330,11 +331,23 @@ def main():
 
     db_pkl = DB_BASE + '.pkl'
     inliers_npy = DB_BASE + '_inliers.npy'
-    if os.path.exists(db_pkl) and os.path.exists(inliers_npy):
+    if os.path.exists(db_pkl):
         print(f'Loading cached DB from {db_pkl}')
         db = TrackingDB()
         db.load(DB_BASE)
-        inliers_per_frame = np.load(inliers_npy)
+        if os.path.exists(inliers_npy):
+            inliers_per_frame = np.load(inliers_npy)
+        else:
+            # Derive inlier % per transition directly from the DB: a track
+            # spans frames i and i+1 iff its match passed RANSAC there.
+            # inlier_pct(i→i+1) = (# tracks shared by both) / (# features in i).
+            print('No inliers cache — deriving from the DB.')
+            inliers_per_frame = np.array([
+                100.0 * len(set(db.tracks(fid)) & set(db.tracks(fid + 1)))
+                / max(1, len(db.tracks(fid)))
+                for fid in range(db.frame_num() - 1)
+            ])
+            np.save(inliers_npy, inliers_per_frame)
     else:
         print(f'Building tracking DB for {n_frames} frames…')
         db, inliers_per_frame = build_db(n_frames)
