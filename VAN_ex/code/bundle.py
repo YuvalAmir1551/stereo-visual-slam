@@ -8,12 +8,6 @@ import gtsam
 from geometry import compose_extrinsics, camera_center
 
 
-# AKAZE keypoint diameter → pixel sigma. Rule of thumb: ±3σ ≈ feature radius,
-# so σ ≈ diameter / 6. For KITTI AKAZE this maps size 6 → σ≈1 px (sharp corner),
-# size 24 → σ≈4 px (large blob).
-SIZE_TO_SIGMA = 1.0 / 6.0
-SIGMA_FLOOR = 0.5  # px — never trust a measurement more than half a pixel
-
 # Noise models. Pose3 order is (azimuth, pitch, roll, x, y, z).
 PRIOR_SIGMAS = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 STEREO_SIGMAS = np.array([1.0, 1.0, 1.0])
@@ -93,7 +87,9 @@ def select_keyframes_in_calm_frames(pnp_poses,
                                     max_frames_gap=19,
                                     min_frames_gap=8,
                                     straight_rot_rate_deg=0.5,
-                                    smooth=5):
+                                    smooth=5,
+                                    translation_jitter=0.0,
+                                    seed=0):
     """Pick keyframes at STRAIGHT-section frames; defer when in a corner.
 
     A bundle's relative pose between its two boundary keyframes is what gets
@@ -119,6 +115,11 @@ def select_keyframes_in_calm_frames(pnp_poses,
             current frame is considered "straight" enough to anchor.
         smooth: moving-average window for the rotation rate (so a single
             noisy frame doesn't disqualify a clean section).
+        translation_jitter: half-range (m) of a per-evaluation uniform random
+            offset added to min_translation, to break the deterministic pick
+            pattern. Default 0 = deterministic. Non-zero invalidates any cache
+            built with a different value.
+        seed: RNG seed used when translation_jitter > 0.
     """
     centres = np.array([camera_center(p) for p in pnp_poses])
     rot_rate = _frame_to_frame_rotation_rate(pnp_poses)
@@ -126,6 +127,7 @@ def select_keyframes_in_calm_frames(pnp_poses,
         kernel = np.ones(smooth) / smooth
         rot_rate = np.convolve(rot_rate, kernel, mode='same')
     straight_threshold = np.deg2rad(straight_rot_rate_deg)
+    rng = np.random.default_rng(seed) if translation_jitter > 0 else None
 
     n = len(centres)
     keyframes = [0]
@@ -136,7 +138,11 @@ def select_keyframes_in_calm_frames(pnp_poses,
         dist = float(np.linalg.norm(centres[i] - last_pos))
         in_straight = rot_rate[i] <= straight_threshold
         force = gap >= max_frames_gap
-        soft = (gap >= min_frames_gap and dist >= min_translation and in_straight)
+        trans_thresh = min_translation
+        if rng is not None:
+            trans_thresh += float(rng.uniform(-translation_jitter,
+                                              translation_jitter))
+        soft = (gap >= min_frames_gap and dist >= trans_thresh and in_straight)
         if force or soft:
             keyframes.append(i)
             last_pos = centres[i]
@@ -238,8 +244,7 @@ def lookup_feature_size(frame_sizes, x, y, fallback=8.0, tol=2.0):
 # ex5
 def build_bundle_window(db, pnp_poses, frames, K_stereo,
                         feature_sizes,
-                        prior_noise=PRIOR_NOISE,
-                        size_scale=6.0):
+                        prior_noise=PRIOR_NOISE):
     """Construct the factor graph and initial values for a single bundle window.
 
     Coordinate system: the first frame in ``frames`` becomes the local origin
@@ -248,9 +253,10 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
 
     For every track that appears in ≥2 of ``frames`` we triangulate an initial
     3D landmark in local coords from the LAST frame in which it appears, then
-    add one GenericStereoFactor3D per appearance. Per-link covariance comes
-    from the AKAZE keypoint size at that (frame, track) appearance:
-    σ = max(SIGMA_FLOOR, size / size_scale).
+    add one GenericStereoFactor3D per appearance. Per-link stereo σ is the
+    AKAZE keypoint size (in pixels) at that (frame, track) appearance —
+    larger features (fuzzy blobs) get weaker weight, sharp corners get
+    strong weight.
 
     A PriorFactorPose3 on the first frame anchors the gauge.
 
@@ -262,7 +268,6 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
         feature_sizes: dict {frame_id -> Nx3 array of (x, y, size)} from
             compute_feature_sizes.
         prior_noise: gauge-prior noise model.
-        size_scale: pixel-σ = max(SIGMA_FLOOR, AKAZE size / size_scale).
 
     Returns:
         graph, initial, info dict (cam_keys, lm_keys, projection_factors,
@@ -313,9 +318,8 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
             size = lookup_feature_size(
                 feature_sizes.get(fid, np.zeros((0, 3))),
                 link.x_left, link.y)
-            sigma = max(SIGMA_FLOOR, size / size_scale)
             noise = gtsam.noiseModel.Diagonal.Sigmas(
-                np.array([sigma, sigma, sigma]))
+                np.array([size, size, size]))
             factor = gtsam.GenericStereoFactor3D(
                 link_to_stereo_point(link), noise,
                 cam_keys[fid], qk, K_stereo)

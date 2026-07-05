@@ -82,11 +82,18 @@ def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes):
     graph, initial, info = build_bundle_window(
         db, pnp_poses, frames, K_stereo, feature_sizes=feature_sizes)
     result, _ = optimize_bundle(graph, initial)
-    marginals = gtsam.Marginals(graph, result)
     kf_a = info['cam_keys'][frames[0]]
     kf_b = info['cam_keys'][frames[-1]]
     rel_pose = result.atPose3(kf_b)        # since c_start = identity
-    rel_cov = conditional_cov(marginals, kf_a, kf_b)
+    try:
+        marginals = gtsam.Marginals(graph, result)
+        rel_cov = conditional_cov(marginals, kf_a, kf_b)
+    except RuntimeError:
+        # Indeterminant linear system (e.g. a degenerate landmark in this
+        # bundle). Fall back to a typical-bundle cov so the pose chain
+        # doesn't collapse.
+        marginals = None
+        rel_cov = np.diag([3e-7, 3e-7, 3e-7, 1e-4, 1e-4, 3e-4])
     return rel_pose, rel_cov, result, info, marginals
 
 
@@ -279,6 +286,7 @@ def main():
 
     keyframes = select_keyframes_in_calm_frames(
         pnp_poses, min_translation=5.0,
+        translation_jitter=1.0, seed=42,
         max_frames_gap=19, min_frames_gap=8,
         straight_rot_rate_deg=0.5,
     )

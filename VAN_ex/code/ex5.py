@@ -470,6 +470,7 @@ def main():
     keyframes = select_keyframes_in_calm_frames(
         pnp_poses,
         min_translation=KF_MIN_TRANSLATION,
+        translation_jitter=1.0, seed=42,
         max_frames_gap=19,                  # window count is gap+1, cap at 20
         min_frames_gap=8,                   # window count ≥ 9 (inside 5-20)
         straight_rot_rate_deg=0.5,
