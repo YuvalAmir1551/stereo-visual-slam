@@ -9,7 +9,7 @@ Spec-mandated flow:
 Within each pass, the SET of consensus-matched pairs is snapshotted at
 pass start (compute Mahalanobis for every eligible (n, i), keep those
 under threshold). Which pairs get tested therefore does not depend on
-within-pass acceptance events, so LC count is monotonic in MIN_INLIER_PCT.
+within-pass acceptance events, so LC count is monotonic in MIN_INLIER_COUNT.
 Candidates are only re-scored between passes.
 """
 
@@ -35,8 +35,8 @@ from bundle import (
 # ----- Hyperparameters -----
 K_SKIP_RECENT_KFS = 10        # skip the last N keyframes when searching for LC
 MAH_THRESHOLD = 1000.0        # Mahalanobis quad-form pre-filter threshold
-MIN_INLIER_PCT = 0.08         # consensus-match acceptance: ≥ this fraction of
-                              # cross-frame matches must be RANSAC inliers
+MIN_INLIER_COUNT = 100        # consensus-match acceptance: ≥ this many
+                              # RANSAC-PnP inliers to accept the LC
 MAX_PASSES = 5                # upper bound; loop breaks on convergence
 PIX_THRESHOLD = 2.0           # RANSAC reprojection threshold (px)
 Y_THRESHOLD = 2.0             # rectified-stereo |Δy| (px)
@@ -303,7 +303,7 @@ def _score_candidates(result, nx_g, keyframes, tried_pairs):
     Snapshotted once per pass — the survivor list is fixed even as later
     within-pass acceptances change the pose graph. This decouples the SET
     of consensus-matched pairs from the within-pass acceptance filter and
-    makes the LC count monotonic in MIN_INLIER_PCT.
+    makes the LC count monotonic in MIN_INLIER_COUNT.
     """
     N = len(keyframes)
     candidates = []
@@ -346,7 +346,7 @@ def _single_pass(graph, result, nx_g, loop_edges, accepted,
         if Rt_rel is None or mask is None:
             continue
         n_in = int(mask.sum())
-        if n_in / len(cross) < MIN_INLIER_PCT:
+        if n_in < MIN_INLIER_COUNT:
             continue
 
         rel_pose, rel_cov = loop_mini_bundle(
