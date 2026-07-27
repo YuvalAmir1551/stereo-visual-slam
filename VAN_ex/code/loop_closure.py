@@ -414,3 +414,24 @@ def run_loop_closure_search(graph, result, keyframes, rel_covs,
             break
 
     return loop_edges, accepted, result
+
+
+# ex7
+def build_pose_graph(keyframes, rel_poses, rel_covs):
+    """Chain pose graph over keyframes: tight prior on c_0 + BetweenFactors."""
+    graph = gtsam.NonlinearFactorGraph()
+    anchor_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([1e-3] * 6))
+    graph.add(gtsam.PriorFactorPose3(cam_key(keyframes[0]),
+                                     gtsam.Pose3(), anchor_noise))
+    for b, rp in enumerate(rel_poses):
+        noise = gtsam.noiseModel.Gaussian.Covariance(rel_covs[b])
+        graph.add(gtsam.BetweenFactorPose3(
+            cam_key(keyframes[b]), cam_key(keyframes[b + 1]),
+            rp, noise))
+    initial = gtsam.Values()
+    initial.insert(cam_key(keyframes[0]), gtsam.Pose3())
+    cur = gtsam.Pose3()
+    for b, rp in enumerate(rel_poses):
+        cur = cur.compose(rp)
+        initial.insert(cam_key(keyframes[b + 1]), cur)
+    return graph, initial

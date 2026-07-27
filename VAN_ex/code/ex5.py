@@ -15,6 +15,7 @@ import gtsam.utils.plot as gtsam_plot
 from dataset import read_cameras, read_poses, read_images, DATA_PATH
 from geometry import camera_center, compose_extrinsics
 from tracking_database import TrackingDB
+from pnp import load_or_compute_pnp_poses
 from bundle import (
     Rt_to_gtsam_pose, gtsam_pose_to_Rt,
     stereo_calibration, stereo_camera, link_to_stereo_point,
@@ -39,21 +40,6 @@ def _save(fig, name):
     os.makedirs(FIGURES_DIR, exist_ok=True)
     fig.savefig(os.path.join(FIGURES_DIR, name + '.png'), dpi=150, bbox_inches='tight')
 
-
-# ex5
-def load_or_compute_pnp_poses(n_frames, K, P_left, P_right, m_right):
-    """Return Nx3x4 PnP world-to-camera extrinsics, recomputing only if missing."""
-    if os.path.exists(PNP_POSES_PATH):
-        poses = np.load(PNP_POSES_PATH)
-        if poses.shape[0] >= n_frames:
-            print(f'Loaded {poses.shape[0]} PnP poses from cache.')
-            return poses[:n_frames]
-    print(f'PnP poses cache missing — running ex3.track_sequence on {n_frames} frames…')
-    from ex3 import track_sequence
-    Rt_seq, _ = track_sequence(n_frames, K, P_left, P_right, m_right)
-    np.save(PNP_POSES_PATH, Rt_seq)
-    print(f'Saved PnP poses to {PNP_POSES_PATH}')
-    return Rt_seq
 
 
 # ex5

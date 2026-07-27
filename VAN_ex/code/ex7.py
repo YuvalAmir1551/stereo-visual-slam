@@ -26,7 +26,7 @@ from bundle import (
 )
 from loop_closure import (
     run_loop_closure_search, load_or_build_kf_features,
-    loop_consensus_match, optimize,
+    loop_consensus_match, optimize, build_pose_graph,
 )
 
 # ----- Paths -----
@@ -42,29 +42,6 @@ def _save(fig, name):
     os.makedirs(FIGURES_DIR, exist_ok=True)
     fig.savefig(os.path.join(FIGURES_DIR, name + '.png'),
                 dpi=150, bbox_inches='tight')
-
-
-# ===========================================================================
-#  Pose-graph construction (chain from bundle relatives)
-# ===========================================================================
-def build_pose_graph(keyframes, rel_poses, rel_covs):
-    """Replicate ex6's chain pose graph: tight prior on c_0 + BetweenFactors."""
-    graph = gtsam.NonlinearFactorGraph()
-    anchor_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([1e-3] * 6))
-    graph.add(gtsam.PriorFactorPose3(cam_key(keyframes[0]),
-                                     gtsam.Pose3(), anchor_noise))
-    for b, rp in enumerate(rel_poses):
-        noise = gtsam.noiseModel.Gaussian.Covariance(rel_covs[b])
-        graph.add(gtsam.BetweenFactorPose3(
-            cam_key(keyframes[b]), cam_key(keyframes[b + 1]),
-            rp, noise))
-    initial = gtsam.Values()
-    initial.insert(cam_key(keyframes[0]), gtsam.Pose3())
-    cur = gtsam.Pose3()
-    for b, rp in enumerate(rel_poses):
-        cur = cur.compose(rp)
-        initial.insert(cam_key(keyframes[b + 1]), cur)
-    return graph, initial
 
 
 # ===========================================================================

@@ -2,8 +2,12 @@
 
 import os
 import pickle
+import time
+
 import numpy as np
 import gtsam
+
+from dataset import DATA_PATH
 
 from geometry import compose_extrinsics, camera_center
 
@@ -360,3 +364,82 @@ def compose_global_poses(relative_keyframe_poses, anchor_Rt=None):
     for Rt_rel in relative_keyframe_poses:
         abs_poses.append(compose_extrinsics(abs_poses[-1], Rt_rel))
     return np.array(abs_poses)
+
+
+RELATIVES_CACHE_PATH = os.path.join(DATA_PATH, 'pose_graph_relatives.pkl')
+
+
+# ex6
+def conditional_cov(marginals, key_a, key_b):
+    """Conditional covariance of pose b given pose a is fixed.
+
+    Schur-complement on the joint information matrix: erase the conditioned
+    variable's rows/cols and invert what's left, then read the queried
+    variable's diagonal block. With only two variables in the join, that
+    reduces to: invert the lower-right 6×6 block of the joint info matrix.
+    """
+    kv = gtsam.KeyVector(); kv.append(key_a); kv.append(key_b)
+    I_joint = marginals.jointMarginalInformation(kv).fullMatrix()
+    return np.linalg.inv(I_joint[6:12, 6:12])
+
+
+# ex6
+def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes):
+    """Solve one bundle window, return (rel_pose, rel_cov, result, info, marginals).
+
+    rel_pose = c_end as a gtsam.Pose3, which equals c_start.between(c_end)
+    because c_start is anchored at identity in the bundle's local frame.
+    rel_cov  = 6×6 conditional cov of c_end given c_start fixed (Schur).
+    """
+    graph, initial, info = build_bundle_window(
+        db, pnp_poses, frames, K_stereo, feature_sizes=feature_sizes)
+    result, _ = optimize_bundle(graph, initial)
+    kf_a = info['cam_keys'][frames[0]]
+    kf_b = info['cam_keys'][frames[-1]]
+    rel_pose = result.atPose3(kf_b)        # since c_start = identity
+    try:
+        marginals = gtsam.Marginals(graph, result)
+        rel_cov = conditional_cov(marginals, kf_a, kf_b)
+    except RuntimeError:
+        # Indeterminant linear system (e.g. a degenerate landmark in this
+        # bundle). Fall back to a typical-bundle cov so the pose chain
+        # doesn't collapse.
+        marginals = None
+        rel_cov = np.diag([3e-7, 3e-7, 3e-7, 1e-4, 1e-4, 3e-4])
+    return rel_pose, rel_cov, result, info, marginals
+
+
+# ex6
+def solve_all_bundles(db, pnp_poses, keyframes, K_stereo, feature_sizes,
+                      cache_path=RELATIVES_CACHE_PATH):
+    """Extract (rel_pose, rel_cov) for every consecutive pair of keyframes.
+
+    Caches results to disk so we don't redo the ~5-minute solve every run.
+    """
+    if os.path.exists(cache_path):
+        with open(cache_path, 'rb') as f:
+            data = pickle.load(f)
+        if data.get('keyframes') == keyframes:
+            print(f'Loaded {len(data["rel_poses"])} bundle relatives from cache.')
+            return data['rel_poses'], data['rel_covs']
+        print('Cache keyframe list mismatch — rebuilding.')
+
+    n_bundles = len(keyframes) - 1
+    rel_poses, rel_covs = [], []
+    t0 = time.time()
+    for b in range(n_bundles):
+        frames = list(range(keyframes[b], keyframes[b + 1] + 1))
+        rel_pose, rel_cov, _, _, _ = solve_bundle(
+            db, pnp_poses, frames, K_stereo, feature_sizes)
+        rel_poses.append(rel_pose)
+        rel_covs.append(rel_cov)
+        if (b + 1) % 20 == 0 or b == n_bundles - 1:
+            elapsed = time.time() - t0
+            print(f'  {b + 1}/{n_bundles} bundles done in {elapsed:.1f}s '
+                  f'({elapsed / (b + 1):.2f}s each)')
+    with open(cache_path, 'wb') as f:
+        pickle.dump({'keyframes': keyframes,
+                     'rel_poses': rel_poses,
+                     'rel_covs': rel_covs}, f)
+    print(f'Saved bundle relatives to {cache_path}')
+    return rel_poses, rel_covs

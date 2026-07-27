@@ -1,12 +1,40 @@
 """PnP-based relative pose estimation with four-view supporter filtering and RANSAC."""
 
+import os
+import time
+
 import cv2
 import numpy as np
 
-from geometry import rodriguez_to_mat, compose_extrinsics, project
+from dataset import DATA_PATH, read_images
+from features import (extract_features, match_descriptors,
+                      rectified_stereo_filter, consensus_matches,
+                      pts_from_matches)
+from geometry import (rodriguez_to_mat, compose_extrinsics, project,
+                      triangulate_linear_lsq)
 
 
 IDENTITY_RT = np.hstack([np.eye(3), np.zeros((3, 1))])
+DETECTOR = 'AKAZE'
+Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff (ex2)
+X_MIN_DISPARITY = 0.0   # px — require positive disparity (rejects x_l <= x_r)
+PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff (ex3)
+PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
+
+
+# ex5
+def load_or_compute_pnp_poses(n_frames, K, P_left, P_right, m_right):
+    """Return Nx3x4 PnP world-to-camera extrinsics, recomputing only if missing."""
+    if os.path.exists(PNP_POSES_PATH):
+        poses = np.load(PNP_POSES_PATH)
+        if poses.shape[0] >= n_frames:
+            print(f'Loaded {poses.shape[0]} PnP poses from cache.')
+            return poses[:n_frames]
+    print(f'PnP poses cache missing — running track_sequence on {n_frames} frames…')
+    Rt_seq, _ = track_sequence(n_frames, K, P_left, P_right, m_right)
+    np.save(PNP_POSES_PATH, Rt_seq)
+    print(f'Saved PnP poses to {PNP_POSES_PATH}')
+    return Rt_seq
 
 
 # ex3
@@ -120,3 +148,93 @@ def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
                 best_mask = mask
 
     return best_Rt, best_mask
+
+
+# ex3
+def stereo_features(img_l, img_r, detector=DETECTOR):
+    """Detect features on a stereo pair, best-match, and apply the rectified-stereo filter.
+
+    Returns:
+        kp_l, des_l: keypoints + descriptors of the left image (needed for the
+            cross-frame match in the next iteration).
+        kp_r: keypoints of the right image (right descriptors are consumed
+            inside this function and not returned).
+        stereo_in: list of inlier DMatch objects (queryIdx ↔ kp_l, trainIdx ↔ kp_r).
+    """
+    kp_l, des_l = extract_features(img_l, detector=detector)
+    kp_r, des_r = extract_features(img_r, detector=detector)
+    matches = match_descriptors(des_l, des_r, detector=detector)
+    stereo_in, _, _ = rectified_stereo_filter(
+        kp_l, kp_r, matches,
+        y_threshold=Y_THRESHOLD, x_min_disparity=X_MIN_DISPARITY)
+    return kp_l, des_l, kp_r, stereo_in
+
+
+# ex3
+def build_consensus(kp_l0, kp_r0, kp_l1, kp_r1, stereo0_in, stereo1_in, cross,
+                    P_left, P_right):
+    """Bundle the 4-view pixel correspondences and pair-0 triangulation.
+
+    Disparity validity is already enforced by `rectified_stereo_filter`
+    (Y-alignment AND minimum X-disparity) on each pair's stereo_in set, so a
+    match that reaches this function is already geometrically clean on both
+    sides.
+    """
+    idx0, idx1 = consensus_matches(stereo0_in, stereo1_in, cross)
+    s0_sel = [stereo0_in[i] for i in idx0]
+    s1_sel = [stereo1_in[i] for i in idx1]
+    pts_l0, pts_r0 = pts_from_matches(kp_l0, kp_r0, s0_sel)
+    pts_l1, pts_r1 = pts_from_matches(kp_l1, kp_r1, s1_sel)
+    X0 = triangulate_linear_lsq(P_left, P_right, pts_l0, pts_r0)
+    return dict(X0=X0, pts_l0=pts_l0, pts_r0=pts_r0,
+                pts_l1=pts_l1, pts_r1=pts_r1, idx0=idx0, idx1=idx1)
+
+
+# ex3
+def track_sequence(n_frames, K, P_left, P_right, m_right, verbose_every=100):
+    """Track frames 0..n_frames−1 with consecutive RANSAC-PnP; return Nx3x4 extrinsics in left0.
+
+    Caches the previous frame's features so each image is processed once.
+    """
+    Rt_global = [IDENTITY_RT.copy()]
+    rng = np.random.default_rng(0)
+    start = time.time()
+
+    img_l, img_r = read_images(0)
+    kp_l, des_l, kp_r, s_in = stereo_features(img_l, img_r)
+
+    for i in range(1, n_frames):
+        img_l_new, img_r_new = read_images(i)
+        kp_l_new, des_l_new, kp_r_new, s_new_in = stereo_features(
+            img_l_new, img_r_new)
+        cross = match_descriptors(des_l, des_l_new, DETECTOR)
+        consensus = build_consensus(kp_l, kp_r, kp_l_new, kp_r_new,
+                                     s_in, s_new_in, cross, P_left, P_right)
+
+        if len(consensus['X0']) >= 4:
+            Rt_rel, _ = ransac_pnp(
+                consensus['X0'],
+                consensus['pts_l0'], consensus['pts_r0'],
+                consensus['pts_l1'], consensus['pts_r1'],
+                K, m_right, threshold=PIX_THRESHOLD, rng=rng,
+            )
+        else:
+            Rt_rel = None
+        if Rt_rel is None:
+            Rt_rel = IDENTITY_RT.copy()
+            print(f"  Frame {i}: PnP unrecoverable ({len(consensus['X0'])} consensus matches) "
+                  f"— falling back to identity.")
+        Rt_global.append(compose_extrinsics(Rt_global[-1], Rt_rel))
+
+        # Roll the cache forward.
+        kp_l, des_l, kp_r, s_in = kp_l_new, des_l_new, kp_r_new, s_new_in
+
+        if verbose_every and i % verbose_every == 0:
+            elapsed = time.time() - start
+            print(f"  Frame {i:>4d}/{n_frames}: elapsed = {elapsed:6.1f}s "
+                  f"({elapsed / i:.2f}s/frame)")
+
+    total = time.time() - start
+    print(f"Tracking finished: {n_frames} frames in {total:.1f}s "
+          f"({total / max(1, n_frames - 1):.2f}s per relative pose).")
+    return np.array(Rt_global), total
