@@ -8,7 +8,7 @@ four estimates.
 """
 import sys, os, pickle, json
 os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
-CODE = "/Users/YuvalA/Documents - Yuval/GitHub/Slam - Video Navigation/Slam Project/VAN_ex/code"
+CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # VAN_ex/code
 sys.path.insert(0, os.path.join(CODE, "dl_study"))
 sys.path.insert(0, CODE)
 

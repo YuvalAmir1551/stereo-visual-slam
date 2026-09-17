@@ -19,3 +19,7 @@ venv/
 VAN_ex/code/project_analysis_heavy.py
 VAN_ex/code/project_analysis_light.py
 VAN_ex/code/project_report_build.py
+
+# Report / course PDFs — kept locally, not published
+VAN_ex/docs/*.pdf
+VAN_ex/docs/**/*.pdf
