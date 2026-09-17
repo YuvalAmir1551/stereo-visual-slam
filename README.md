@@ -7,7 +7,7 @@ feature tracking, PnP-RANSAC odometry, windowed bundle adjustment, pose-graph
 optimization, and loop closure. A final deep-learning front-end study adds a
 wide-baseline anchor step that **halves the open-loop drift**.
 
-![Python](https://img.shields.io/badge/Python-3.10-blue)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![OpenCV](https://img.shields.io/badge/OpenCV-cv2-5C3EE8)
 ![GTSAM](https://img.shields.io/badge/GTSAM-factor%20graphs-0A7E8C)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -140,16 +140,17 @@ VAN_ex/
 ### 1. Environment
 
 The pipeline needs Python with OpenCV, GTSAM (Python bindings), NumPy and
-Matplotlib. Conda is the smoothest way to get the GTSAM bindings:
+Matplotlib. The provided `environment.yml` creates a conda environment named
+`slam` with everything the core pipeline needs:
 
 ```bash
-conda create -n slam python=3.10
+conda env create -f environment.yml
 conda activate slam
-pip install numpy matplotlib opencv-python gtsam
 ```
 
 The optional `dl_study/` experiments additionally require `torch`, `kornia`
-(LoFTR), and SuperPoint + LightGlue.
+(LoFTR), and SuperPoint + LightGlue — uncomment those lines in
+`environment.yml` before creating the environment.
 
 ### 2. Dataset
 
