@@ -4,7 +4,8 @@ import os
 import cv2
 import numpy as np
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'dataset', 'sequences', '00')
+_SEQ = os.environ.get('KITTI_SEQUENCE', '00')
+DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'dataset', 'sequences', _SEQ)
 
 
 # ex1
@@ -53,7 +54,7 @@ def read_poses():
     Returns:
         Nx3x4 array of extrinsic matrices, one per frame.
     """
-    path = os.path.join(DATA_PATH, '..', '..', 'poses', '00.txt')
+    path = os.path.join(DATA_PATH, '..', '..', 'poses', f'{_SEQ}.txt')
     poses = []
     with open(path) as f:
         for line in f:
