@@ -2,7 +2,7 @@
 
 A from-scratch **stereo visual-odometry and SLAM pipeline** that recovers the
 trajectory of [KITTI](https://www.cvlibs.net/datasets/kitti/eval_odometry.php)
-odometry sequence 00 (~3,360 stereo frames, ≈3.7 km) from images alone —
+odometry sequence 00 (~3,300 stereo frames, ≈2.5 km) from images alone —
 feature tracking, PnP-RANSAC odometry, windowed bundle adjustment, pose-graph
 optimization, and loop closure. A final deep-learning front-end study adds a
 wide-baseline anchor step that **halves the open-loop drift**.
