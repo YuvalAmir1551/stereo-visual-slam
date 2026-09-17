@@ -1,19 +1,69 @@
-"""Exact reproduction of the winning 'hybrid_c025dw' method from
-loftr-midchain-anchors/run_midchain.py + build_hybrid.py, refactored into a
-single per-window function for full-sequence integration.
+"""Wide-baseline anchor bundle refinement — the adopted deep-learning
+improvement (report section 4.3), applied one bundle window at a time.
 
-Winning config (hybrid_c025dw):
-  * Anchors per pair = UNION of  (a) LoFTR (kornia outdoor) + ZNCC sub-pixel
-    stereo, and (b) SuperPoint+LightGlue stereo consensus, each RANSAC-verified
-    with pnp.ransac_pnp (relaxed 2.0->3.5 px retry), deduped by 2px proximity,
-    capped at 150 per pair.
-  * Hybrid pairing rule (GT-free): if the END pair (kf_a,kf_b) verifies -> inject
-    ONLY the end pair (end-only). Else fall back to the half-window chain
-    (seg=10): consecutive segment pairs + the end pair, keeping every pair that
-    verifies. If NONE verify -> method fails (caller uses baseline).
-  * Bundle: build_bundle_window with AKAZE track sigmas x2 (down-weight), inject
-    anchors as landmark + 2 stereo factors, sigma 0.25px, Huber 1.345 robust.
-  * relative pose = gtsam_pose_to_Rt(result @ cam_key(kf_b)).
+WHAT PROBLEM THIS SOLVES
+------------------------
+The odometry drift on KITTI 00 is dominated by ROTATION error, and that error
+is concentrated in the fast-turn bundle windows. Inside a turn the features are
+tracked frame-by-frame, so each small tracking error compounds and the tracks
+"slide" systematically across the window. Bundle adjustment cannot see this
+bias, because within the window the sliding stays self-consistent (the
+reprojection residuals remain low). The window's total rotation ends up
+slightly wrong, and that error accumulates into the global trajectory.
+
+THE IDEA
+--------
+Add a direct, long-range constraint that pins the window's two ends together in
+ONE hop, instead of trusting the drifting frame-by-frame chain. We match the
+window's FIRST keyframe (kf_a) to its LAST keyframe (kf_b) — a wide baseline
+(~8-19 frames apart) — using a LEARNED matcher, which is far more reliable than
+AKAZE at wide baselines. Each such match becomes an extra 3D landmark observed
+in both end keyframes (two stereo factors), injected into the bundle. These
+"anchors" out-vote the biased AKAZE tracks and correct the window's rotation.
+
+HOW run_window() WORKS (per window kf_a..kf_b)
+----------------------------------------------
+1. Build anchor matches between a keyframe pair (pair_anchors), from the UNION
+   of two independent learned sources, each RANSAC-verified:
+     a. LoFTR (kornia 'outdoor') matches the two LEFT images; the right-image x
+        of each match is recovered by a ZNCC sub-pixel template search along the
+        epipolar row (_zncc_xr) -> a stereo observation at both ends.
+     b. SuperPoint + LightGlue stereo consensus -> a second, independent set.
+   Both are verified with pnp.ransac_pnp (threshold retry 2.0 -> 3.5 px, keep if
+   >= 12 inliers AND >= 25% inlier ratio), merged (SP points within 2 px of a
+   LoFTR point are dropped as duplicates), and capped at 150 per pair.
+2. Hybrid pairing rule (GT-free — which pairs get anchored):
+     - If the END pair (kf_a, kf_b) verifies -> anchor ONLY the end pair.
+     - Else fall back to a half-window CHAIN (~10-frame segments: the
+       consecutive segment pairs plus the end pair), keeping every pair that
+       verifies. This rescues turns too wide for a single end-to-end match.
+     - If nothing verifies -> return rel=None; the caller keeps the plain
+       bundle relative pose for that window.
+3. Solve the bundle:
+     - build_bundle_window as usual, but the AKAZE track measurement sigmas are
+       DOUBLED (down-weighted x2) so the few anchors out-weigh the many biased
+       tracks.
+     - Inject each anchor as one landmark + two GenericStereoFactor3D (on kf_a
+       and kf_b), tight sigma 0.25 px, wrapped in a Huber(1.345) robust kernel.
+     - Optimize; kf_a is the window's local identity, so the optimized kf_b pose
+       IS the relative motion, returned as a 3x4 world-to-camera Rt.
+
+CONFIG NAME 'hybrid_c025dw' (the winner of the ~90-config search):
+  hybrid = the end-pair / half-chain fallback rule;  c025 = anchor sigma 0.25 px;
+  dw = AKAZE tracks down-weighted x2.
+
+RESULT: applied to all 317 windows this halves the open-loop trajectory drift
+(median 14.47 -> 7.16 m). With loop closures the final gain is small, because
+the closures already absorb most of that drift.
+
+NOTE — interaction with the Link.size refactor: the x2 track down-weight below
+works by doubling `feature_sizes`, which build_bundle_window uses only as a
+FALLBACK. After the refactor that stores keypoint size on each Link,
+build_bundle_window prefers `link.size`, so the down-weight is bypassed on a
+size-carrying DB. The reported campaign numbers were produced on the pre-refactor
+DB (links without size), where the down-weight was active. To re-run this method
+on the migrated DB and reproduce it, the down-weight must be reapplied through
+the Link sizes (or via a track-sigma scale on build_bundle_window).
 """
 import os, sys, pickle
 import numpy as np

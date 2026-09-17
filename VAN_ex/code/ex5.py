@@ -451,7 +451,11 @@ def main():
 
     pnp_poses = load_or_compute_pnp_poses(n_frames, K, P_left, P_right, m2)
 
-    feature_sizes = compute_feature_sizes(n_frames, FEATURE_SIZES_PATH)
+    # The tracking DB now stores each keypoint's size on its Link, so the
+    # separate feature-size detection pass is only needed for older DBs.
+    _lk = next(iter(db.linkId_to_link.values()), None)
+    feature_sizes = (None if _lk is not None and getattr(_lk, 'size', None)
+                     else compute_feature_sizes(n_frames, FEATURE_SIZES_PATH))
 
     keyframes = select_keyframes_in_calm_frames(
         pnp_poses,

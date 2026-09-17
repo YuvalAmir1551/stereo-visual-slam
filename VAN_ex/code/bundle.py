@@ -247,7 +247,7 @@ def lookup_feature_size(frame_sizes, x, y, fallback=8.0, tol=2.0):
 
 # ex5
 def build_bundle_window(db, pnp_poses, frames, K_stereo,
-                        feature_sizes,
+                        feature_sizes=None,
                         prior_noise=PRIOR_NOISE):
     """Construct the factor graph and initial values for a single bundle window.
 
@@ -260,7 +260,8 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
     add one GenericStereoFactor3D per appearance. Per-link stereo σ is the
     AKAZE keypoint size (in pixels) at that (frame, track) appearance —
     larger features (fuzzy blobs) get weaker weight, sharp corners get
-    strong weight.
+    strong weight. The size is read from the Link (stored at DB-build time);
+    ``feature_sizes`` is only a fallback for older DBs whose links predate it.
 
     A PriorFactorPose3 on the first frame anchors the gauge.
 
@@ -269,8 +270,9 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
         pnp_poses: Nx3x4 world-to-camera extrinsics from ex3 PnP.
         frames: list of frame ids in the window (sorted ascending).
         K_stereo: gtsam.Cal3_S2Stereo.
-        feature_sizes: dict {frame_id -> Nx3 array of (x, y, size)} from
-            compute_feature_sizes.
+        feature_sizes: optional {frame_id -> Nx3 (x, y, size)} fallback used
+            only for links that carry no size (older serialized DBs). Modern
+            DBs store the size on each Link, so this can be None.
         prior_noise: gauge-prior noise model.
 
     Returns:
@@ -319,9 +321,14 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
         lm_keys[tid] = qk
         for fid in fids:
             link = db.link(fid, tid)
-            size = lookup_feature_size(
-                feature_sizes.get(fid, np.zeros((0, 3))),
-                link.x_left, link.y)
+            # Per-observation stereo σ = the AKAZE keypoint scale. Preferred
+            # source is the size stored on the Link at DB-build time; fall back
+            # to the feature-size cache for links from older serialized DBs.
+            size = getattr(link, 'size', None)
+            if not size:
+                size = lookup_feature_size(
+                    (feature_sizes or {}).get(fid, np.zeros((0, 3))),
+                    link.x_left, link.y)
             noise = gtsam.noiseModel.Diagonal.Sigmas(
                 np.array([size, size, size]))
             factor = gtsam.GenericStereoFactor3D(
@@ -384,7 +391,7 @@ def conditional_cov(marginals, key_a, key_b):
 
 
 # ex6
-def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes):
+def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes=None):
     """Solve one bundle window, return (rel_pose, rel_cov, result, info, marginals).
 
     rel_pose = c_end as a gtsam.Pose3, which equals c_start.between(c_end)
@@ -410,7 +417,7 @@ def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes):
 
 
 # ex6
-def solve_all_bundles(db, pnp_poses, keyframes, K_stereo, feature_sizes,
+def solve_all_bundles(db, pnp_poses, keyframes, K_stereo, feature_sizes=None,
                       cache_path=RELATIVES_CACHE_PATH):
     """Extract (rel_pose, rel_cov) for every consecutive pair of keyframes.
 

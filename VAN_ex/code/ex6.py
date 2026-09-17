@@ -207,7 +207,11 @@ def main():
     n_frames = min(sum(1 for f in os.listdir(img_dir) if f.endswith('.png')),
                    db.frame_num())
     pnp_poses = np.load(PNP_POSES_PATH)[:n_frames]
-    feature_sizes = compute_feature_sizes(n_frames, FEATURE_SIZES_PATH)
+    # The tracking DB now stores each keypoint's size on its Link, so the
+    # separate feature-size detection pass is only needed for older DBs.
+    _lk = next(iter(db.linkId_to_link.values()), None)
+    feature_sizes = (None if _lk is not None and getattr(_lk, 'size', None)
+                     else compute_feature_sizes(n_frames, FEATURE_SIZES_PATH))
 
     keyframes = select_keyframes_in_calm_frames(
         pnp_poses, min_translation=5.0,

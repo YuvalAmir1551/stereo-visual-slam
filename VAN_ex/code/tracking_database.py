@@ -12,11 +12,13 @@ class Link:
     x_left: float
     x_right: float
     y: float
+    size: float = None   # keypoint scale (px); None on links from older serialized DBs
 
-    def __init__(self, x_left, x_right, y):
+    def __init__(self, x_left, x_right, y, size=None):
         self.x_left = x_left
         self.x_right = x_right
         self.y = y
+        self.size = size
 
     def left_keypoint(self):
         return np.array([self.x_left, self.y])
@@ -238,7 +240,11 @@ class TrackingDB:
             kpl = kp_left[m.queryIdx]
             kpr = kp_right[m.trainIdx]
 
-            link = Link(kpl.pt[0], kpr.pt[0], (kpl.pt[1] + kpr.pt[1]) / 2)
+            # Store the left keypoint scale on the link, so bundle adjustment
+            # can weight this observation by its detection size without a
+            # second detection pass over the images.
+            link = Link(kpl.pt[0], kpr.pt[0], (kpl.pt[1] + kpr.pt[1]) / 2,
+                        size=kpl.size)
             links.append(link)
 
         return features[is_valid], links
