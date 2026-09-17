@@ -16,7 +16,7 @@ wide-baseline anchor step that **halves the open-loop drift**.
 > semester-long project, then cleaned up here for public reference.
 
 <p align="center">
-  <img src="VAN_ex/docs/project_figures/fig05_trajectories.png" width="70%"
+  <img src="docs/project_figures/fig05_trajectories.png" width="70%"
        alt="Estimated trajectories vs. ground truth on KITTI sequence 00" />
 </p>
 <p align="center"><em>Bird's-eye trajectories on KITTI 00: frame-to-frame PnP
@@ -71,9 +71,9 @@ the deep-learning anchor step independently halves the open-loop drift
 (14.5 m → 7.2 m) before any loop closure.
 
 <p align="center">
-  <img src="VAN_ex/docs/ex7_figures/q7_5_trajectory_with_without.png" width="48%"
+  <img src="docs/ex7_figures/q7_5_trajectory_with_without.png" width="48%"
        alt="Trajectory with and without loop closure" />
-  <img src="VAN_ex/docs/project_figures/fig12_abs_pg_lc_error.png" width="48%"
+  <img src="docs/project_figures/fig12_abs_pg_lc_error.png" width="48%"
        alt="Absolute location error along the sequence, with loop closure" />
 </p>
 <p align="center"><em>Left: the pose-graph trajectory before/after loop closure.
@@ -91,11 +91,11 @@ injected as an extra 3D landmark ("anchor") that out-votes the biased tracks.
 
 Applied to all 317 windows, this halves the open-loop trajectory drift (median
 **14.5 m → 7.2 m**). The winning configuration was selected from a search over
-~90 variants; the code lives in [`VAN_ex/code/dl_study/`](VAN_ex/code/dl_study)
+~90 variants; the code lives in [`code/deep_frontend/`](code/deep_frontend)
 and is fully self-contained — it adds no changes to the core pipeline modules.
 
 <p align="center">
-  <img src="VAN_ex/docs/project_figures/fig18_dl_campaign.png" width="70%"
+  <img src="docs/project_figures/fig18_dl_campaign.png" width="70%"
        alt="Deep-learning front-end study results" />
 </p>
 
@@ -107,18 +107,18 @@ library modules that the exercises only *use*.
 
 | # | Topic | Entry point |
 | --- | --- | --- |
-| 1 | Feature detection, matching, ratio test | [`ex1.py`](VAN_ex/code/ex1.py) |
-| 2 | Rectified-stereo outlier rejection & triangulation | [`ex2.py`](VAN_ex/code/ex2.py) |
-| 3 | PnP-RANSAC relative motion, consensus tracking | [`ex3.py`](VAN_ex/code/ex3.py) |
-| 4 | Multi-frame feature-tracking database & statistics | [`ex4.py`](VAN_ex/code/ex4.py) |
-| 5 | Windowed bundle adjustment (GTSAM) | [`ex5.py`](VAN_ex/code/ex5.py) |
-| 6 | Pose graph from bundle relatives | [`ex6.py`](VAN_ex/code/ex6.py) |
-| 7 | Loop closure | [`ex7.py`](VAN_ex/code/ex7.py) |
+| 1 | Feature detection, matching, ratio test | [`ex1.py`](code/ex1.py) |
+| 2 | Rectified-stereo outlier rejection & triangulation | [`ex2.py`](code/ex2.py) |
+| 3 | PnP-RANSAC relative motion, consensus tracking | [`ex3.py`](code/ex3.py) |
+| 4 | Multi-frame feature-tracking database & statistics | [`ex4.py`](code/ex4.py) |
+| 5 | Windowed bundle adjustment (GTSAM) | [`ex5.py`](code/ex5.py) |
+| 6 | Pose graph from bundle relatives | [`ex6.py`](code/ex6.py) |
+| 7 | Loop closure | [`ex7.py`](code/ex7.py) |
 
 ## Repository layout
 
 ```
-VAN_ex/
+.
 ├── code/
 │   ├── dataset.py            # KITTI I/O: images, calibration, GT poses
 │   ├── features.py           # detection, matching, rectified-stereo filter, consensus
@@ -130,7 +130,7 @@ VAN_ex/
 │   ├── plot.py               # shared 3D-world plotting conventions
 │   ├── project_figures.py    # renders the report figures
 │   ├── ex1.py … ex7.py       # exercise entry points
-│   └── dl_study/             # deep-learning front-end study (self-contained)
+│   └── deep_frontend/        # deep-learning front-end study (self-contained)
 ├── dataset/                  # KITTI data — not tracked (see below)
 └── docs/                     # generated figures (report PDFs are kept local)
 ```
@@ -148,7 +148,7 @@ conda env create -f environment.yml
 conda activate slam
 ```
 
-The optional `dl_study/` experiments additionally require `torch`, `kornia`
+The optional `deep_frontend/` experiments additionally require `torch`, `kornia`
 (LoFTR), and SuperPoint + LightGlue — uncomment those lines in
 `environment.yml` before creating the environment.
 
@@ -159,7 +159,7 @@ The KITTI data is **not** included in this repository. Download the
 and the ground-truth poses, then arrange sequence 00 like this:
 
 ```
-VAN_ex/dataset/
+dataset/
 ├── sequences/00/
 │   ├── image_0/   # left  camera PNGs
 │   ├── image_1/   # right camera PNGs
@@ -175,7 +175,7 @@ variable (defaults to `00`).
 Each exercise runs standalone from the `code/` directory:
 
 ```bash
-cd VAN_ex/code
+cd code
 python ex1.py     # feature detection & matching
 python ex3.py     # PnP-RANSAC visual odometry
 python ex7.py     # full pipeline + loop closure

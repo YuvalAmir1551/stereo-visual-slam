@@ -1,5 +1,5 @@
 # Dataset
-VAN_ex/dataset/
+dataset/
 
 # macOS
 .DS_Store
@@ -16,10 +16,10 @@ venv/
 .idea/
 
 # Report build tooling (not part of the submission)
-VAN_ex/code/project_analysis_heavy.py
-VAN_ex/code/project_analysis_light.py
-VAN_ex/code/project_report_build.py
+code/project_analysis_heavy.py
+code/project_analysis_light.py
+code/project_report_build.py
 
 # Report / course PDFs — kept locally, not published
-VAN_ex/docs/*.pdf
-VAN_ex/docs/**/*.pdf
+docs/*.pdf
+docs/**/*.pdf

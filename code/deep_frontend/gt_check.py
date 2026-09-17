@@ -8,8 +8,8 @@ four estimates.
 """
 import sys, os, pickle, json
 os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
-CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # VAN_ex/code
-sys.path.insert(0, os.path.join(CODE, "dl_study"))
+CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the code/ dir
+sys.path.insert(0, os.path.join(CODE, "deep_frontend"))
 sys.path.insert(0, CODE)
 
 import numpy as np

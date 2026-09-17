@@ -12,7 +12,7 @@ dependencies:
   - pip
   - pip:
       - gtsam==4.2.1
-      # Optional — only for the deep-learning front-end study (VAN_ex/code/dl_study/):
+      # Optional — only for the deep-learning front-end study (code/deep_frontend/):
       # - torch==2.12.1
       # - kornia==0.8.3
       # - "lightglue @ git+https://github.com/cvg/LightGlue.git"

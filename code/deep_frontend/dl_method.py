@@ -72,8 +72,8 @@ import gtsam
 import torch
 import kornia.feature as KF
 
-CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # VAN_ex/code
-sys.path.insert(0, os.path.join(CODE, "dl_study"))
+CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the code/ dir
+sys.path.insert(0, os.path.join(CODE, "deep_frontend"))
 sys.path.insert(0, CODE)
 
 from dataset import read_images, read_cameras, DATA_PATH
