@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 
 
-# ex2
 def triangulate_linear_lsq(P_left, P_right, pts_left, pts_right):
     """Linear least-squares triangulation.
 
@@ -42,7 +41,6 @@ def triangulate_linear_lsq(P_left, P_right, pts_left, pts_right):
     return out
 
 
-# ex2
 def triangulate_cv2(P_left, P_right, pts_left, pts_right):
     """OpenCV reference triangulation (cv2.triangulatePoints), for comparison.
 
@@ -60,7 +58,6 @@ def triangulate_cv2(P_left, P_right, pts_left, pts_right):
     return X
 
 
-# ex3
 def rodriguez_to_mat(rvec, tvec):
     """Assemble a 3x4 [R | t] extrinsic from a Rodrigues rotation vector and a translation."""
     R, _ = cv2.Rodrigues(rvec)
@@ -68,7 +65,6 @@ def rodriguez_to_mat(rvec, tvec):
     return np.hstack((R, t))
 
 
-# ex3
 def camera_center(Rt):
     """World-frame centre of a camera with extrinsic [R | t]: C = −R^T t.
 
@@ -79,7 +75,6 @@ def camera_center(Rt):
     return -R.T @ t
 
 
-# ex3
 def compose_extrinsics(Rt_AB, Rt_BC):
     """Compose two extrinsics so that the result transforms frame A directly into frame C.
 
@@ -94,7 +89,6 @@ def compose_extrinsics(Rt_AB, Rt_BC):
     return np.hstack((R, t.reshape(3, 1)))
 
 
-# ex3
 def project(K, Rt, X):
     """Project Nx3 points X through a camera with intrinsics K and extrinsic [R | t].
 

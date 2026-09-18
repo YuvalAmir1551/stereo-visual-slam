@@ -46,7 +46,6 @@ DETECTOR = 'AKAZE'
 KF_FEATURES_CACHE = os.path.join(DATA_PATH, 'keyframe_features.pkl')
 
 
-# ex7
 def optimize(graph, initial):
     """Levenberg–Marquardt optimisation of a NonlinearFactorGraph."""
     return gtsam.LevenbergMarquardtOptimizer(graph, initial).optimize()
@@ -55,7 +54,6 @@ def optimize(graph, initial):
 # ===========================================================================
 #  Pose-graph → networkx helpers  (7.1)
 # ===========================================================================
-# ex7
 def pose_graph_to_nx(n_keyframes, rel_covs, loop_edges=()):
     """Undirected networkx graph; edges carry the bundle's 6×6 cov as the
     edge attribute 'cov'. Nodes are keyframe indices 0..N-1.
@@ -70,7 +68,6 @@ def pose_graph_to_nx(n_keyframes, rel_covs, loop_edges=()):
     return g
 
 
-# ex7
 def shortest_path_cov(nx_graph, src, dst):
     """Course-spec Dijkstra with matrix-valued (6×6) edge weights.
 
@@ -88,7 +85,7 @@ def shortest_path_cov(nx_graph, src, dst):
 
     Returns (Σ_dst, path). By construction Σ_dst is the *sum* of edge
     covariances along the min-cost path — i.e. Σ_n|i, exactly as the
-    ex7 spec asks.
+    pose-graph formulation requires.
     """
     Sigma = {src: np.zeros((6, 6))}
     costs = {src: 0.0}
@@ -126,7 +123,6 @@ def shortest_path_cov(nx_graph, src, dst):
     return Sigma[dst], path
 
 
-# ex7
 def mahalanobis_pose3(pose_delta, sigma):
     """6-DOF Mahalanobis quadratic form for a Pose3 measurement.
 
@@ -143,7 +139,6 @@ def mahalanobis_pose3(pose_delta, sigma):
 # ===========================================================================
 #  Keyframe feature cache (stereo-inlier features per keyframe)
 # ===========================================================================
-# ex7
 def _extract_kf_features(kf_id):
     """Stereo-pair feature extraction + filter; return (descriptors, pts_l, pts_r).
 
@@ -166,7 +161,6 @@ def _extract_kf_features(kf_id):
     return desc, pts_l, pts_r
 
 
-# ex7
 def load_or_build_kf_features(keyframes):
     """Disk-backed cache of per-keyframe stereo features."""
     if os.path.exists(KF_FEATURES_CACHE):
@@ -195,7 +189,6 @@ def load_or_build_kf_features(keyframes):
 # ===========================================================================
 #  Q7.2 — consensus match between two (distant) keyframes
 # ===========================================================================
-# ex7
 def loop_consensus_match(kf_n, kf_i, kf_features, K, m_right, P_left, P_right):
     """RANSAC-PnP between two distant keyframes.
 
@@ -227,7 +220,6 @@ def loop_consensus_match(kf_n, kf_i, kf_features, K, m_right, P_left, P_right):
 # ===========================================================================
 #  Q7.3 — mini-bundle for a loop pair
 # ===========================================================================
-# ex7
 def loop_mini_bundle(kf_n, kf_i, kf_features, cross, q, t, mask,
                      K_stereo, Rt_rel_init):
     """Two-frame BA for the loop pair.
@@ -284,7 +276,7 @@ def loop_mini_bundle(kf_n, kf_i, kf_features, cross, q, t, mask,
         return None, None
     result = optimize(graph, initial)
     rel_pose = result.atPose3(B_KEY)
-    # Conditional cov of c_n given c_i fixed — same Schur trick as ex6.
+    # Conditional cov of c_n given c_i fixed — same Schur trick.
     marg = gtsam.Marginals(graph, result)
     kv = gtsam.KeyVector(); kv.append(A_KEY); kv.append(B_KEY)
     I_joint = marg.jointMarginalInformation(kv).fullMatrix()
@@ -295,7 +287,6 @@ def loop_mini_bundle(kf_n, kf_i, kf_features, cross, q, t, mask,
 # ===========================================================================
 #  LC search
 # ===========================================================================
-# ex7
 def _score_candidates(result, nx_g, keyframes, tried_pairs):
     """Score every eligible (n, i) pair by Mahalanobis; return the survivors
     (those below MAH_THRESHOLD) in natural (n, i) order.
@@ -322,7 +313,6 @@ def _score_candidates(result, nx_g, keyframes, tried_pairs):
     return candidates
 
 
-# ex7
 def _single_pass(graph, result, nx_g, loop_edges, accepted,
                  tried_pairs, kf_features, keyframes,
                  K, m_right, P_left, P_right, K_stereo):
@@ -384,7 +374,6 @@ def _single_pass(graph, result, nx_g, loop_edges, accepted,
     return added, result
 
 
-# ex7
 def run_loop_closure_search(graph, result, keyframes, rel_covs,
                             K, m_right, P_left, P_right, K_stereo):
     """Multi-pass loop-closure search over the given pose graph.
@@ -416,7 +405,6 @@ def run_loop_closure_search(graph, result, keyframes, rel_covs,
     return loop_edges, accepted, result
 
 
-# ex7
 def build_pose_graph(keyframes, rel_poses, rel_covs):
     """Chain pose graph over keyframes: tight prior on c_0 + BetweenFactors."""
     graph = gtsam.NonlinearFactorGraph()

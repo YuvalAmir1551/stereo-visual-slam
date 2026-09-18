@@ -9,7 +9,7 @@ Conventions used here (and expected by callers):
   • Equal physical metre scale on every axis via `set_box_aspect`.
 
 Every exercise that visualises 3D world points should use these helpers
-so that figures across the project (ex2, ex3, ex4) share the same look.
+so that figures across the project share the same look.
 """
 
 import numpy as np
@@ -23,7 +23,6 @@ PLOT_LIMS = dict(x=(-50, 50), y=(0, 100), z=(-50, 50))
 FRUSTUM_DEPTH = 5.0
 
 
-# ex2
 def draw_frustum(ax, K, img_shape, depth=FRUSTUM_DEPTH, origin=(0., 0., 0.)):
     """Draw a Blender/pytransform3d-style camera frustum at `origin`.
 
@@ -66,7 +65,6 @@ def draw_frustum(ax, K, img_shape, depth=FRUSTUM_DEPTH, origin=(0., 0., 0.)):
     ax.add_collection3d(up)
 
 
-# ex2
 def plot_3d_world(X, ax, K=None, img_shape=None, title='',
                   highlight_mask=None, lims=PLOT_LIMS):
     """Scatter Nx3 camera-frame points on `ax` using the project's conventions.
@@ -116,7 +114,6 @@ def plot_3d_world(X, ax, K=None, img_shape=None, title='',
     return ax
 
 
-# ex3
 def plot_trajectory_xz(positions, gt=None, ax=None, title='',
                        label_est='Estimated', label_gt='Ground truth'):
     """Top-down 2D trajectory plot (X right, Z forward) in the CV camera frame.

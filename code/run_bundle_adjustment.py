@@ -1,4 +1,4 @@
-"""Exercise 5: Bundle adjustment of small windows along the KITTI trajectory.
+"""Bundle adjustment of small windows along the KITTI trajectory.
 
 q1 — single-track sanity check (StereoCamera backproject/project + factor error)
 q3 — first bundle window (factor graph, LM, error breakdown, plots)
@@ -41,8 +41,6 @@ def _save(fig, name):
     fig.savefig(os.path.join(FIGURES_DIR, name + '.png'), dpi=150, bbox_inches='tight')
 
 
-
-# ex5
 def q1(db, pnp_poses, K_stereo, rng=None):
     """Q5.1 — Single-track sanity check.
 
@@ -117,7 +115,6 @@ def q1(db, pnp_poses, K_stereo, rng=None):
     _save(fig, 'q5_1_track_errors')
 
 
-# ex5
 def _largest_initial_error_factor(graph, initial, projection_factors):
     """Return (idx, fid, tid, link, initial_error) for the projection factor
     with the largest error at the initial values."""
@@ -166,7 +163,6 @@ def _draw_projection_vs_measurement(fid, link, proj_stereo, save_name, title):
     _save(fig, save_name)
 
 
-# ex5
 def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     """Q5.3 — First bundle window: keyframes[0] → keyframes[1] inclusive."""
     kf0, kf1 = keyframes[0], keyframes[1]
@@ -302,7 +298,6 @@ def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     _save(fig, 'q5_3_bundle_topdown')
 
 
-# ex5
 def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     """Q5.4 — solve every bundle window; chain into global keyframe poses."""
     n_bundles = len(keyframes) - 1
@@ -439,7 +434,7 @@ def main():
     P_left, P_right = K @ m1, K @ m2
     K_stereo = stereo_calibration(K, baseline)
 
-    # Tracking DB from ex4.
+    # Tracking DB.
     db = TrackingDB()
     db.load(TRACKING_DB_BASE)
 

@@ -1,8 +1,8 @@
 """Head-to-head: classical AKAZE front-end vs SuperPoint+LightGlue.
 
 For frame transitions (i, i+1) sampled evenly across KITTI sequence 00, run
-both front-ends through the SAME downstream pipeline stages used by ex4's
-build_db: rectified stereo filter -> temporal match -> 4-view consensus ->
+both front-ends through the SAME downstream pipeline stages used to build the
+tracking database: rectified stereo filter -> temporal match -> 4-view consensus ->
 triangulation -> ransac_pnp, then compare pose estimates to ground truth.
 
 Both paths use identical filter/RANSAC parameters (Y_THRESHOLD=2.0,
@@ -20,7 +20,7 @@ from dl_features import (extract_features_superpoint, match_features_lightglue, 
 from geometry import triangulate_cv2
 from pnp import ransac_pnp
 
-Y_THRESHOLD = 2.0       # px  (ex4 values)
+Y_THRESHOLD = 2.0       # px 
 X_MIN_DISPARITY = 1.0   # px
 DETECTOR = 'AKAZE'
 STEP = 50               # sample every 50th transition -> ~66 samples

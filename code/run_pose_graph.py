@@ -1,4 +1,4 @@
-"""Exercise 6: Pose graph from bundle adjustment results.
+"""Pose graph from bundle adjustment results.
 
 q1 — Extract the relative pose + conditional covariance between every
      consecutive pair of keyframes (using the per-bundle optimisation
@@ -36,7 +36,7 @@ FEATURE_SIZES_PATH = os.path.join(DATA_PATH, 'feature_sizes.pkl')
 RELATIVES_CACHE_PATH = os.path.join(DATA_PATH, 'pose_graph_relatives.pkl')
 
 # Y-up axis remap for 3D plots: matplotlib_X = data_X, matplotlib_Y = data_Z,
-# matplotlib_Z = -data_Y. Same trick we used in ex5's q5_3 3D plot.
+# matplotlib_Z = -data_Y. Same axis-permutation trick as the other 3D plots.
 M = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], dtype=np.float64)
 M6 = np.block([[M, np.zeros((3, 3))], [np.zeros((3, 3)), M]])
 
@@ -47,7 +47,6 @@ def _save(fig, name):
                 bbox_inches='tight')
 
 
-# ex6
 def _plot_pose3_with_remap(ax, pose, P, axis_length=0.5, cov_scale=1.0):
     """Apply the M6 axis-remap to a (pose, cov) pair and plot the triad."""
     new_pose = gtsam.Pose3(
@@ -58,7 +57,6 @@ def _plot_pose3_with_remap(ax, pose, P, axis_length=0.5, cov_scale=1.0):
                                   P=new_P)
 
 
-# ex6
 def q1(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     """Q6.1 — relative pose + cov for the first bundle; 3D plot per-frame cov."""
     kf_a, kf_b = keyframes[0], keyframes[1]
@@ -105,7 +103,6 @@ def q1(db, pnp_poses, keyframes, K_stereo, feature_sizes):
                 dpi=150, pad_inches=0.4)
 
 
-# ex6
 def q2(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     """Q6.2 — build pose graph from all bundles, optimise, plot."""
     n_kf = len(keyframes)

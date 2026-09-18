@@ -1,4 +1,4 @@
-"""Exercise 1: Consensus Matching — Feature detection, matching, and significance testing."""
+"""Consensus Matching — Feature detection, matching, and significance testing."""
 
 import random
 import cv2

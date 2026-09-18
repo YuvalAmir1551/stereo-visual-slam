@@ -1,4 +1,4 @@
-"""Exercise 3: PnP-RANSAC relative motion, supporter filtering, full-sequence tracking."""
+"""PnP-RANSAC relative motion, supporter filtering, full-sequence tracking."""
 
 import os
 import time
@@ -27,9 +27,9 @@ from pnp import (solve_pnp, supporters_mask, ransac_pnp,
 from plot import plot_3d_world, plot_trajectory_xz
 
 DETECTOR = 'AKAZE'
-Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff (ex2)
+Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff
 X_MIN_DISPARITY = 0.0   # px — require positive disparity (rejects x_l ≤ x_r)
-PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff (ex3)
+PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff
 N_FRAMES_FULL = None    # None → use every frame found on disk; integer → cap (debug)
 
 FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs', 'ex3_figures')

@@ -1,4 +1,4 @@
-"""Exercise 2: Rectified-stereo outlier rejection and 3D triangulation."""
+"""Rectified-stereo outlier rejection and 3D triangulation."""
 
 import os
 import numpy as np

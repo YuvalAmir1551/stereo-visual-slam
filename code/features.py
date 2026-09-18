@@ -6,11 +6,10 @@ import numpy as np
 # Lower-than-default AKAZE detection threshold (cv2 default 0.001 → 0.0001).
 # Yields more far-field keypoints near the vanishing point, which empirically
 # tightens the rotation estimate on KITTI 00 and is required to feed enough
-# tracks into the ex5/ex6 bundle adjustment.
+# tracks into the bundle adjustment.
 _AKAZE_THRESHOLD = 0.0001
 
 
-# ex1
 def extract_features(img, detector, n_features=5000):
     """Detect keypoints and compute their descriptors on an image.
 
@@ -39,7 +38,6 @@ def _norm_type(detector):
     return cv2.NORM_HAMMING if detector in ('ORB', 'AKAZE') else cv2.NORM_L2
 
 
-# ex1
 def match_descriptors_knn(desc_left, desc_right, detector, k=2):
     """Match each left descriptor to its k nearest right descriptors.
 
@@ -55,7 +53,6 @@ def match_descriptors_knn(desc_left, desc_right, detector, k=2):
     return bf.knnMatch(desc_left, desc_right, k=k)
 
 
-# ex1
 def match_descriptors(desc_left, desc_right, detector, cross_check=False):
     """Single-best-match descriptor matching (no ratio test).
 
@@ -72,7 +69,6 @@ def match_descriptors(desc_left, desc_right, detector, cross_check=False):
     return bf.match(desc_left, desc_right)
 
 
-# ex1
 def apply_ratio_test(knn_matches, ratio=0.7):
     """Apply Lowe's ratio test to filter matches.
 
@@ -97,7 +93,6 @@ def apply_ratio_test(knn_matches, ratio=0.7):
     return accepted, rejected
 
 
-# ex2
 def match_stereo_pair(img_left, img_right, detector):
     """Detect features on a stereo pair and best-match them (no ratio test).
 
@@ -111,7 +106,6 @@ def match_stereo_pair(img_left, img_right, detector):
     return kp_l, kp_r, matches
 
 
-# ex2
 def pts_from_matches(kp_left, kp_right, matches):
     """Extract pixel coordinates of matched keypoints as two Nx2 arrays."""
     pts_l = np.array([kp_left[m.queryIdx].pt for m in matches])
@@ -119,7 +113,6 @@ def pts_from_matches(kp_left, kp_right, matches):
     return pts_l, pts_r
 
 
-# ex2
 def rectified_stereo_filter(kp_left, kp_right, matches,
                             y_threshold=2.0, x_min_disparity=None):
     """Reject matches that violate the rectified-stereo geometry.
@@ -129,7 +122,7 @@ def rectified_stereo_filter(kp_left, kp_right, matches,
         pair corresponding points share the same image row, so |Δy| should be
         near zero.
       • x_left − x_right > x_min_disparity — positive-disparity sanity check.
-        A real point in front of the camera satisfies x_l > x_r (ex2.4);
+        A real point in front of the camera satisfies x_l > x_r;
         requiring a small margin above 0 also drops very-far points whose
         sub-noise disparity would triangulate to garbage. Skipped if
         `x_min_disparity` is None.
@@ -139,7 +132,7 @@ def rectified_stereo_filter(kp_left, kp_right, matches,
         matches: Iterable of cv2.DMatch (typically the best match per left kp).
         y_threshold: Maximum allowed |Δy| in pixels.
         x_min_disparity: Minimum required disparity x_l − x_r in pixels, or
-            None to disable the X check (ex2 default behaviour).
+            None to disable the X check.
 
     Returns:
         inliers: List of DMatch passing both checks.
@@ -162,7 +155,6 @@ def rectified_stereo_filter(kp_left, kp_right, matches,
     return inliers, outliers, np.array(dy)
 
 
-# ex3
 def consensus_matches(stereo0, stereo1, cross):
     """Find keypoint correspondences visible in all four images of two stereo pairs.
 

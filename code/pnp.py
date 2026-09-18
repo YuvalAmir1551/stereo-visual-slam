@@ -16,13 +16,12 @@ from geometry import (rodriguez_to_mat, compose_extrinsics, project,
 
 IDENTITY_RT = np.hstack([np.eye(3), np.zeros((3, 1))])
 DETECTOR = 'AKAZE'
-Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff (ex2)
+Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff
 X_MIN_DISPARITY = 0.0   # px — require positive disparity (rejects x_l <= x_r)
-PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff (ex3)
+PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff
 PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
 
 
-# ex5
 def load_or_compute_pnp_poses(n_frames, K, P_left, P_right, m_right):
     """Return Nx3x4 PnP world-to-camera extrinsics, recomputing only if missing."""
     if os.path.exists(PNP_POSES_PATH):
@@ -37,7 +36,6 @@ def load_or_compute_pnp_poses(n_frames, K, P_left, P_right, m_right):
     return Rt_seq
 
 
-# ex3
 def solve_pnp(X, pts2d, K, flags=cv2.SOLVEPNP_SQPNP):
     """Solve PnP for the extrinsic [R | t] of a camera viewing 3D points X at pixels pts2d.
 
@@ -64,7 +62,6 @@ def solve_pnp(X, pts2d, K, flags=cv2.SOLVEPNP_SQPNP):
     return rodriguez_to_mat(rvec, tvec)
 
 
-# ex3
 def project_to_four_views(X, Rt_left1, K, m_right):
     """Project Nx3 points (in left0 frame) onto left0, right0, left1, right1.
 
@@ -81,7 +78,6 @@ def project_to_four_views(X, Rt_left1, K, m_right):
             project(K, Rt_right1, X))
 
 
-# ex3
 def supporters_mask(X0, pts_l0, pts_r0, pts_l1, pts_r1, Rt_left1, K, m_right, threshold=2.0):
     """Boolean mask of points whose reprojection error is within `threshold` on all four images."""
     pl0, pr0, pl1, pr1 = project_to_four_views(X0, Rt_left1, K, m_right)
@@ -92,7 +88,6 @@ def supporters_mask(X0, pts_l0, pts_r0, pts_l1, pts_r1, Rt_left1, K, m_right, th
     return (e_l0 <= threshold) & (e_r0 <= threshold) & (e_l1 <= threshold) & (e_r1 <= threshold)
 
 
-# ex3
 def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
                threshold=2.0, p_success=0.99, max_iter=1000, min_iter=50,
                refine=True, sample_size=4, rng=None):
@@ -150,7 +145,6 @@ def ransac_pnp(X0, pts_l0, pts_r0, pts_l1, pts_r1, K, m_right,
     return best_Rt, best_mask
 
 
-# ex3
 def stereo_features(img_l, img_r, detector=DETECTOR):
     """Detect features on a stereo pair, best-match, and apply the rectified-stereo filter.
 
@@ -170,7 +164,6 @@ def stereo_features(img_l, img_r, detector=DETECTOR):
     return kp_l, des_l, kp_r, stereo_in
 
 
-# ex3
 def build_consensus(kp_l0, kp_r0, kp_l1, kp_r1, stereo0_in, stereo1_in, cross,
                     P_left, P_right):
     """Bundle the 4-view pixel correspondences and pair-0 triangulation.
@@ -190,7 +183,6 @@ def build_consensus(kp_l0, kp_r0, kp_l1, kp_r1, stereo0_in, stereo1_in, cross,
                 pts_l1=pts_l1, pts_r1=pts_r1, idx0=idx0, idx1=idx1)
 
 
-# ex3
 def track_sequence(n_frames, K, P_left, P_right, m_right, verbose_every=100):
     """Track frames 0..n_frames−1 with consecutive RANSAC-PnP; return Nx3x4 extrinsics in left0.
 

@@ -20,11 +20,10 @@ PRIOR_NOISE = gtsam.noiseModel.Diagonal.Sigmas(PRIOR_SIGMAS)
 STEREO_NOISE = gtsam.noiseModel.Diagonal.Sigmas(STEREO_SIGMAS)
 
 
-# ex5
 def stereo_calibration(K, baseline):
     """Wrap KITTI intrinsics + baseline into a gtsam.Cal3_S2Stereo.
 
-    The ex5 spec writes the last arg as ``-baseline``. That holds when
+    The convention writes the last arg as ``-baseline``. That holds when
     ``baseline`` is taken from the right-camera extrinsic ``m2[0, 3]``, which
     on KITTI is the SIGNED value −0.54 m, so ``-baseline = +0.54``. Passing
     +baseline matches GTSAM's convention (right camera at +x relative to left).
@@ -34,7 +33,6 @@ def stereo_calibration(K, baseline):
     return gtsam.Cal3_S2Stereo(fx, fy, 0.0, cx, cy, float(baseline))
 
 
-# ex5
 def Rt_to_gtsam_pose(Rt):
     """Convert our world-to-camera extrinsic [R | t] to a gtsam.Pose3.
 
@@ -45,7 +43,6 @@ def Rt_to_gtsam_pose(Rt):
     return gtsam.Pose3(gtsam.Rot3(R.T), gtsam.Point3(-R.T @ t))
 
 
-# ex5
 def gtsam_pose_to_Rt(pose):
     """Inverse of Rt_to_gtsam_pose — return a 3x4 world-to-camera extrinsic."""
     R_g = pose.rotation().matrix()
@@ -55,7 +52,6 @@ def gtsam_pose_to_Rt(pose):
     return np.hstack([R, t.reshape(3, 1)])
 
 
-# ex5
 def relative_extrinsic(Rt_ref, Rt_i):
     """Compute Rt of frame i expressed in frame ref's local coordinate system.
 
@@ -71,7 +67,6 @@ def relative_extrinsic(Rt_ref, Rt_i):
     return np.hstack([R_rel, t_rel.reshape(3, 1)])
 
 
-# ex5
 def _frame_to_frame_rotation_rate(pnp_poses):
     """Per-frame rotation magnitude (rad) between consecutive PnP poses."""
     rots = pnp_poses[:, :3, :3]
@@ -85,7 +80,6 @@ def _frame_to_frame_rotation_rate(pnp_poses):
     return rate
 
 
-# ex5
 def select_keyframes_in_calm_frames(pnp_poses,
                                     min_translation=5.0,
                                     max_frames_gap=19,
@@ -169,7 +163,7 @@ def select_keyframes_in_calm_frames(pnp_poses,
     return keyframes
 
 
-# ex5 — variable-key conventions used across the bundle layer.
+# variable-key conventions used across the bundle layer.
 def cam_key(frame_id):
     return gtsam.symbol('c', frame_id)
 
@@ -178,13 +172,11 @@ def lm_key(track_id):
     return gtsam.symbol('q', track_id)
 
 
-# ex5
 def stereo_camera(gtsam_pose, K_stereo):
     """Shorthand: gtsam.StereoCamera(gtsam_pose, K_stereo)."""
     return gtsam.StereoCamera(gtsam_pose, K_stereo)
 
 
-# ex5
 def link_to_stereo_point(link):
     """A TrackingDB Link is (x_left, x_right, y); wrap as a StereoPoint2."""
     return gtsam.StereoPoint2(float(link.x_left),
@@ -192,7 +184,6 @@ def link_to_stereo_point(link):
                               float(link.y))
 
 
-# ex5
 def compute_feature_sizes(n_frames, cache_path,
                           detector_threshold=0.0001, verbose_every=200):
     """Run AKAZE on every frame, save (x, y, size) per keypoint to a pickle.
@@ -228,7 +219,6 @@ def compute_feature_sizes(n_frames, cache_path,
     return sizes
 
 
-# ex5
 def lookup_feature_size(frame_sizes, x, y, fallback=8.0, tol=2.0):
     """Find the AKAZE keypoint closest to (x, y); return its size in pixels.
 
@@ -245,7 +235,6 @@ def lookup_feature_size(frame_sizes, x, y, fallback=8.0, tol=2.0):
     return fallback
 
 
-# ex5
 def build_bundle_window(db, pnp_poses, frames, K_stereo,
                         feature_sizes=None,
                         prior_noise=PRIOR_NOISE):
@@ -344,7 +333,6 @@ def build_bundle_window(db, pnp_poses, frames, K_stereo,
                                 first_frame=first)
 
 
-# ex5
 def optimize_bundle(graph, initial):
     """Run Levenberg-Marquardt on the bundle and return (result, optimizer)."""
     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial)
@@ -352,7 +340,6 @@ def optimize_bundle(graph, initial):
     return result, optimizer
 
 
-# ex5
 def compose_global_poses(relative_keyframe_poses, anchor_Rt=None):
     """Chain per-bundle relative poses into absolute world-to-camera extrinsics.
 
@@ -376,7 +363,6 @@ def compose_global_poses(relative_keyframe_poses, anchor_Rt=None):
 RELATIVES_CACHE_PATH = os.path.join(DATA_PATH, 'pose_graph_relatives.pkl')
 
 
-# ex6
 def conditional_cov(marginals, key_a, key_b):
     """Conditional covariance of pose b given pose a is fixed.
 
@@ -390,7 +376,6 @@ def conditional_cov(marginals, key_a, key_b):
     return np.linalg.inv(I_joint[6:12, 6:12])
 
 
-# ex6
 def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes=None):
     """Solve one bundle window, return (rel_pose, rel_cov, result, info, marginals).
 
@@ -416,7 +401,6 @@ def solve_bundle(db, pnp_poses, frames, K_stereo, feature_sizes=None):
     return rel_pose, rel_cov, result, info, marginals
 
 
-# ex6
 def solve_all_bundles(db, pnp_poses, keyframes, K_stereo, feature_sizes=None,
                       cache_path=RELATIVES_CACHE_PATH):
     """Extract (rel_pose, rel_cov) for every consecutive pair of keyframes.

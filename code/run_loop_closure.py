@@ -1,4 +1,4 @@
-"""Exercise 7: Loop closure for the pose graph.
+"""Loop closure for the pose graph.
 
 Orchestration only — algorithm primitives (Mahalanobis pre-filter,
 consensus match, mini-bundle, LC search) live in `loop_closure.py`.

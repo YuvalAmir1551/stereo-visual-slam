@@ -8,7 +8,6 @@ _SEQ = os.environ.get('KITTI_SEQUENCE', '00')
 DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'dataset', 'sequences', _SEQ)
 
 
-# ex1
 def read_images(idx):
     """Read a stereo pair (left, right) by frame index."""
     img_name = '{:06d}.png'.format(idx)
@@ -17,11 +16,10 @@ def read_images(idx):
     return img_left, img_right
 
 
-# ex2
 def read_cameras():
     """Read KITTI stereo camera matrices from calib.txt.
 
-    Follows the helper in the ex2 spec PDF: K is factored out of the two
+    K is factored out of the two
     projection matrices so the returned `m1`, `m2` are pure extrinsics
     ([R | t] form, with R = I for both KITTI rectified cameras).
 
@@ -42,7 +40,6 @@ def read_cameras():
     return K, m1, m2
 
 
-# ex3
 def read_poses():
     """Read ground-truth extrinsics from ``poses/00.txt``.
 

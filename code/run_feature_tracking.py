@@ -1,4 +1,4 @@
-"""Exercise 4: Multi-frame feature tracking database built on ex3's RANSAC PnP."""
+"""Multi-frame feature tracking database built on the RANSAC-PnP odometry."""
 
 import os
 import time
@@ -16,10 +16,10 @@ from pnp import ransac_pnp
 from tracking_database import TrackingDB
 
 DETECTOR = 'AKAZE'
-Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff (ex2)
+Y_THRESHOLD = 2.0       # px — rectified-stereo vertical-deviation cutoff
 X_MIN_DISPARITY = 1.0   # px — minimum stereo disparity; drops far points whose
                         # sub-pixel disparity noise dominates triangulated depth.
-PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff (ex3 RANSAC)
+PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff
 N_FRAMES_FULL = None    # None → use every frame found on disk; integer → cap (debug)
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
@@ -63,7 +63,7 @@ def build_db(n_frames, verbose_every=200):
       1. Stereo-filter frame i+1 → filtered descriptor matrix + Link list.
       2. Match frame i's filtered descriptors against frame i+1's (cross-frame).
       3. Triangulate the prev links to get 3D points in frame-i coords.
-      4. Run ex3.ransac_pnp on the cross-matched 4-view consensus.
+      4. Run ransac_pnp on the cross-matched 4-view consensus.
       5. Hand the inlier mask + cross matches to TrackingDB.add_frame.
 
     Returns:
