@@ -21,7 +21,7 @@ import gtsam
 import cv2
 
 import loop_closure as lc
-from ex7 import build_pose_graph, RELATIVES_CACHE, LC_CACHE
+from run_loop_closure import build_pose_graph, RELATIVES_CACHE, LC_CACHE
 from dataset import read_images, read_cameras, read_poses
 from geometry import triangulate_linear_lsq, camera_center
 from features import (rectified_stereo_filter)

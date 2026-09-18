@@ -14,7 +14,7 @@ import gtsam
 import cv2
 
 import loop_closure as lc
-from ex7 import build_pose_graph, RELATIVES_CACHE, LC_CACHE
+from run_loop_closure import build_pose_graph, RELATIVES_CACHE, LC_CACHE
 from dataset import read_cameras, read_poses
 from geometry import camera_center
 from bundle import stereo_calibration, cam_key, Rt_to_gtsam_pose

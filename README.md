@@ -99,21 +99,20 @@ and is fully self-contained — it adds no changes to the core pipeline modules.
        alt="Deep-learning front-end study results" />
 </p>
 
-## The pipeline, exercise by exercise
+## The pipeline, stage by stage
 
-The project was built as seven progressive exercises. Each `ex<n>.py` is an
-entry point (`main()` + a `q<n>()` per question); the algorithms live in shared
-library modules that the exercises only *use*.
+The pipeline is built as seven progressive stages. Each is a standalone entry
+point that only *uses* the shared library modules:
 
-| # | Topic | Entry point |
+| # | Stage | Entry point |
 | --- | --- | --- |
-| 1 | Feature detection, matching, ratio test | [`ex1.py`](code/ex1.py) |
-| 2 | Rectified-stereo outlier rejection & triangulation | [`ex2.py`](code/ex2.py) |
-| 3 | PnP-RANSAC relative motion, consensus tracking | [`ex3.py`](code/ex3.py) |
-| 4 | Multi-frame feature-tracking database & statistics | [`ex4.py`](code/ex4.py) |
-| 5 | Windowed bundle adjustment (GTSAM) | [`ex5.py`](code/ex5.py) |
-| 6 | Pose graph from bundle relatives | [`ex6.py`](code/ex6.py) |
-| 7 | Loop closure | [`ex7.py`](code/ex7.py) |
+| 1 | Feature detection, matching, ratio test | [`demo_feature_matching.py`](code/demo_feature_matching.py) |
+| 2 | Rectified-stereo outlier rejection & triangulation | [`demo_triangulation.py`](code/demo_triangulation.py) |
+| 3 | PnP-RANSAC relative motion, consensus tracking | [`run_visual_odometry.py`](code/run_visual_odometry.py) |
+| 4 | Multi-frame feature-tracking database & statistics | [`run_feature_tracking.py`](code/run_feature_tracking.py) |
+| 5 | Windowed bundle adjustment (GTSAM) | [`run_bundle_adjustment.py`](code/run_bundle_adjustment.py) |
+| 6 | Pose graph from bundle relatives | [`run_pose_graph.py`](code/run_pose_graph.py) |
+| 7 | Loop closure | [`run_loop_closure.py`](code/run_loop_closure.py) |
 
 ## Repository layout
 
@@ -129,7 +128,7 @@ library modules that the exercises only *use*.
 │   ├── loop_closure.py       # Mahalanobis scoring, consensus match, mini-bundle
 │   ├── plot.py               # shared 3D-world plotting conventions
 │   ├── project_figures.py    # renders the report figures
-│   ├── ex1.py … ex7.py       # exercise entry points
+│   ├── demo_*.py, run_*.py    # the seven stage entry points (matching → loop closure)
 │   └── deep_frontend/        # deep-learning front-end study (self-contained)
 ├── dataset/                  # KITTI data — not tracked (see below)
 └── docs/                     # generated figures (report PDFs are kept local)
@@ -176,13 +175,14 @@ Each exercise runs standalone from the `code/` directory:
 
 ```bash
 cd code
-python ex1.py     # feature detection & matching
-python ex3.py     # PnP-RANSAC visual odometry
-python ex7.py     # full pipeline + loop closure
+python demo_feature_matching.py   # feature detection & matching
+python run_visual_odometry.py     # PnP-RANSAC visual odometry
+python run_loop_closure.py        # full pipeline + loop closure
 ```
 
-`ex5`–`ex7` cache intermediate results (tracking database, bundle relatives,
-loop closures) to disk, so the first run is the slow one.
+The bundle-adjustment, pose-graph and loop-closure stages cache intermediate
+results (tracking database, bundle relatives, loop closures) to disk, so the
+first run is the slow one.
 
 ## Tech stack
 
