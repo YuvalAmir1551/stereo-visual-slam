@@ -13,7 +13,7 @@ wide-baseline anchor step that **halves the open-loop drift**.
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 <p align="center">
-  <img src="docs/project_figures/fig05_trajectories.png" width="70%"
+  <img src="docs/fig05_trajectories.png" width="70%"
        alt="Estimated trajectories vs. ground truth on KITTI sequence 00" />
 </p>
 <p align="center"><em>Bird's-eye trajectories on KITTI 00: frame-to-frame PnP
@@ -68,9 +68,9 @@ the deep-learning anchor step independently halves the open-loop drift
 (14.5 m → 7.2 m) before any loop closure.
 
 <p align="center">
-  <img src="docs/project_figures/fig11_abs_pg_no_lc_error.png" width="48%"
+  <img src="docs/fig11_abs_pg_no_lc_error.png" width="48%"
        alt="Absolute location error without loop closure" />
-  <img src="docs/project_figures/fig12_abs_pg_lc_error.png" width="48%"
+  <img src="docs/fig12_abs_pg_lc_error.png" width="48%"
        alt="Absolute location error with loop closure" />
 </p>
 <p align="center"><em>Absolute location error along the sequence, before (left)
@@ -92,7 +92,7 @@ Applied to all 317 windows, this halves the open-loop trajectory drift (median
 and is fully self-contained — it adds no changes to the core pipeline modules.
 
 <p align="center">
-  <img src="docs/project_figures/fig18_dl_campaign.png" width="70%"
+  <img src="docs/fig18_dl_campaign.png" width="70%"
        alt="Deep-learning front-end study results" />
 </p>
 
@@ -128,7 +128,7 @@ point that only *uses* the shared library modules:
 │   ├── demo_*.py, run_*.py    # the seven stage entry points (matching → loop closure)
 │   └── deep_frontend/        # deep-learning front-end study (self-contained)
 ├── dataset/                  # KITTI data — not tracked (see below)
-└── docs/                     # rendered summary figures (docs/project_figures/)
+└── docs/                     # rendered summary figures (figNN.png)
 ```
 
 ## Getting started

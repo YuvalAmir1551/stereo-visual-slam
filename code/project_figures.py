@@ -1,7 +1,7 @@
 """Figures summarising the SLAM pipeline results.
 
 Reads cached analysis data (under ``<dataset>/report_data/``) and renders every
-summary figure into ``docs/project_figures/``. Each ``figNN_*`` function creates
+summary figure into ``docs/``. Each ``figNN_*`` function creates
 exactly one figure.
 """
 import os
@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 from dataset import DATA_PATH
 
 DATA_DIR = os.path.join(DATA_PATH, 'report_data')
-FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs',
-                           'project_figures')
+FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
 
 # Categorical palette (fixed role -> hue assignment across the figures)
 C_PNP = '#2a78d6'      # blue    — PnP estimation
