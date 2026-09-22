@@ -95,6 +95,7 @@ def first_bundle_covariance(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     ax.set_title('first bundle frames with conditional covariance')
     gtsam_plot.set_axes_equal(fig.number)
     fig.subplots_adjust(left=0.05, right=0.92, top=0.95, bottom=0.05)
+    os.makedirs(FIGURES_DIR, exist_ok=True)
     fig.savefig(os.path.join(FIGURES_DIR, 'first_bundle_3d.png'),
                 dpi=150, pad_inches=0.4)
 

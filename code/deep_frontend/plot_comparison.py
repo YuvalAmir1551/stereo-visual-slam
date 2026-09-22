@@ -7,7 +7,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'dataset', 'sequences', '00', 'report_data')
-FIGS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs', 'project_figures')
+FIGS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'docs')
 
 C_AKAZE = '#2a78d6'   # categorical slot 1 (blue)
 C_SPLG = '#1baf7a'    # categorical slot 2 (aqua)

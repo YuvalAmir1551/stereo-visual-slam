@@ -59,7 +59,7 @@ for j, (n, i) in enumerate(pos_pairs):
     if Rt_rel is None or mask is None:
         continue
     n_in = int(mask.sum())
-    if n_in / len(cross) < lc.MIN_INLIER_PCT:
+    if n_in < lc.MIN_INLIER_COUNT:
         continue
     rel_pose, rel_cov = lc.loop_mini_bundle(
         keyframes[n], keyframes[i], ak_feats, cross, q, t, mask,
