@@ -24,6 +24,8 @@ Y_THRESHOLD = 2.0       # px
 X_MIN_DISPARITY = 1.0   # px
 DETECTOR = 'AKAZE'
 STEP = 50               # sample every 50th transition -> ~66 samples
+SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       '..', '..', 'dataset', 'sequences', '00', 'report_data')
 OUT_JSON = os.path.join(SCRATCH, "frontend_comparison.json")
 
 K, m1, m2 = read_cameras()
@@ -37,6 +39,7 @@ _deep_frontend()  # warm up model load before timing
 
 
 def stereo_classical(img_l, img_r):
+    """Extract and match AKAZE features across a stereo pair, returning keypoints, left descriptors, match count and stereo-inlier matches."""
     kp_l, des_l = extract_features(img_l, detector=DETECTOR)
     kp_r, des_r = extract_features(img_r, detector=DETECTOR)
     matches = match_descriptors(des_l, des_r, detector=DETECTOR)
@@ -47,6 +50,7 @@ def stereo_classical(img_l, img_r):
 
 
 def stereo_deep(img_l, img_r):
+    """Extract SuperPoint features and match with LightGlue across a stereo pair, returning keypoints, left features, match count and stereo-inlier matches."""
     kp_l, f_l = extract_features_superpoint(img_l)
     kp_r, f_r = extract_features_superpoint(img_r)
     matches = match_features_lightglue(f_l, f_r)
@@ -66,6 +70,7 @@ def rel_gt(i):
 
 
 def pose_errors(Rt_est, i):
+    """Return (rotation error in deg, location error in m) of the estimated relative pose against GT for transition i -> i+1."""
     Rg, tg = rel_gt(i)
     dR = Rt_est[:, :3] @ Rg.T
     rvec, _ = cv2.Rodrigues(dR)
@@ -75,6 +80,7 @@ def pose_errors(Rt_est, i):
 
 
 def run_transition(i, method):
+    """Run the full stereo -> temporal -> consensus -> PnP pipeline for transition i -> i+1 with the given front-end and return a metrics record."""
     rng = np.random.default_rng(0)   # same seed for both methods
     img_l0, img_r0 = read_images(i)
     img_l1, img_r1 = read_images(i + 1)
@@ -137,6 +143,7 @@ with open(OUT_JSON, 'w') as f:
     json.dump(results, f)
 
 def summarize(recs):
+    """Aggregate per-transition records into mean/median/percentile summary metrics for one front-end."""
     g = lambda key: np.array([r[key] for r in recs if r[key] is not None], dtype=float)
     return {
         'keypoints/img': g('kp').mean(),

@@ -22,6 +22,8 @@ X_MIN_DISPARITY = 1.0
 DETECTOR = 'AKAZE'
 GAPS = [1, 5, 10, 20, 40]
 STARTS = list(range(0, 3200, 100))   # 32 start frames
+SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       '..', '..', 'dataset', 'sequences', '00', 'report_data')
 OUT_JSON = os.path.join(SCRATCH, "gap_comparison.json")
 
 K, m1, m2 = read_cameras()
@@ -32,6 +34,7 @@ _deep_frontend()
 _cache = {}  # (frame, method) -> stereo dict; reused across gaps
 
 def stereo(frame, method):
+    """Return (cached) stereo keypoints, left descriptors/features and stereo-inlier matches for a frame using the given front-end."""
     key = (frame, method)
     if key in _cache:
         return _cache[key]
@@ -55,6 +58,7 @@ def stereo(frame, method):
 
 
 def rel_gt(i, j):
+    """GT relative extrinsic from frame i to frame j: returns (R, t)."""
     Ri, ti = gt[i][:, :3], gt[i][:, 3]
     Rj, tj = gt[j][:, :3], gt[j][:, 3]
     R = Rj @ Ri.T
@@ -62,6 +66,7 @@ def rel_gt(i, j):
 
 
 def run(i, j, method):
+    """Match frame i to frame j with the given front-end through the consensus + RANSAC-PnP pipeline and return a metrics record."""
     s0, s1 = stereo(i, method), stereo(j, method)
     if method == 'AKAZE':
         cross = match_descriptors(s0['des_l'], s1['des_l'], detector=DETECTOR)

@@ -65,7 +65,7 @@ DB (links without size), where the down-weight was active. To re-run this method
 on the migrated DB and reproduce it, the down-weight must be reapplied through
 the Link sizes (or via a track-sigma scale on build_bundle_window).
 """
-import os, sys, pickle
+import os, sys
 import numpy as np
 import cv2
 import gtsam
@@ -76,7 +76,7 @@ CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the code/ 
 sys.path.insert(0, os.path.join(CODE, "deep_frontend"))
 sys.path.insert(0, CODE)
 
-from dataset import read_images, read_cameras, DATA_PATH
+from dataset import read_images, read_cameras
 from features import rectified_stereo_filter
 from geometry import triangulate_linear_lsq
 from dl_features import extract_features_superpoint, match_features_lightglue
@@ -106,6 +106,7 @@ K_stereo = stereo_calibration(K, -m2[0, 3])
 DEVICE = 'mps' if torch.backends.mps.is_available() else 'cpu'
 _matcher = None
 def matcher():
+    """Lazily build and cache the LoFTR (kornia 'outdoor') matcher."""
     global _matcher
     if _matcher is None:
         _matcher = KF.LoFTR(pretrained='outdoor').eval().to(DEVICE)
@@ -114,39 +115,58 @@ def matcher():
 
 # ---- LoFTR anchor source ----------------------------------------------------
 def _to_t(img):
+    """Grayscale uint8 image -> normalised (1, 1, H, W) float tensor on DEVICE."""
     return torch.from_numpy(img).float()[None, None].to(DEVICE) / 255.0
 
 def _loftr(imgA, imgB):
+    """Run LoFTR on two grayscale images; return (keypoints0, keypoints1, confidence)."""
     with torch.inference_mode():
         out = matcher()({'image0': _to_t(imgA), 'image1': _to_t(imgB)})
     return (out['keypoints0'].cpu().numpy(), out['keypoints1'].cpu().numpy(),
             out['confidence'].cpu().numpy())
 
 def _zncc_xr(img_l, img_r, pts, half=5, dmax=128, dmin=1.0):
+    """Recover each left-image point's right-image x by ZNCC template matching
+    along the epipolar row, with parabolic sub-pixel refinement.
+
+    Returns (xr, score) arrays; entries are NaN where no valid disparity in
+    [dmin, dmax] was found.
+    """
     H, W = img_l.shape
-    xr = np.full(len(pts), np.nan); sc = np.full(len(pts), np.nan)
+    xr = np.full(len(pts), np.nan)
+    sc = np.full(len(pts), np.nan)
     for i, (x, y) in enumerate(pts):
         xi, yi = int(round(x)), int(round(y))
         if xi - half - 1 < 0 or xi + half + 1 >= W or yi - half < 0 or yi + half >= H:
             continue
         tpl = img_l[yi - half:yi + half + 1, xi - half:xi + half + 1]
-        x0 = max(0, xi - int(dmax) - half); x1 = xi + half + 1
+        x0 = max(0, xi - int(dmax) - half)
+        x1 = xi + half + 1
         strip = img_r[yi - half:yi + half + 1, x0:x1]
         if strip.shape[1] < tpl.shape[1] + 3:
             continue
         res = cv2.matchTemplate(strip, tpl, cv2.TM_CCOEFF_NORMED)[0]
-        j = int(np.argmax(res)); s = float(res[j]); j_sub = float(j)
+        j = int(np.argmax(res))
+        s = float(res[j])
+        j_sub = float(j)
         if 0 < j < len(res) - 1:
             den = res[j - 1] - 2 * res[j] + res[j + 1]
             if abs(den) > 1e-9:
                 j_sub = j + 0.5 * (res[j - 1] - res[j + 1]) / den
-        cx_r = x0 + j_sub + half; d = xi - cx_r
+        cx_r = x0 + j_sub + half
+        d = xi - cx_r
         if d < dmin or d > dmax:
             continue
-        xr[i] = x - d; sc[i] = s
+        xr[i] = x - d
+        sc[i] = s
     return xr, sc
 
 def _ransac_verify(X_a, pl_a, pr_a, pl_b, pr_b):
+    """RANSAC-PnP verify an anchor set, retrying at each threshold in RANSAC_THRS.
+
+    Returns (inlier indices, threshold) once the inlier-count and inlier-ratio
+    gates (MIN_INLIERS, MIN_RATIO) pass, else (None, None).
+    """
     for thr in RANSAC_THRS:
         rng = np.random.default_rng(0)
         Rt, mask = ransac_pnp(X_a, pl_a, pr_a, pl_b, pr_b, K, m2,
@@ -157,13 +177,21 @@ def _ransac_verify(X_a, pl_a, pr_a, pl_b, pr_b):
     return None, None
 
 def _loftr_anchors(fa, fb):
-    la, ra = read_images(fa); lb, rb = read_images(fb)
+    """LoFTR-based anchor matches between frames fa and fb.
+
+    Matches the two LEFT images with LoFTR, recovers each match's right-image x
+    with ZNCC (_zncc_xr) to form stereo observations at both ends, triangulates,
+    and RANSAC-verifies. Returns an anchor dict or None.
+    """
+    la, ra = read_images(fa)
+    lb, rb = read_images(fb)
     kp0, kp1, conf = _loftr(la, lb)
     keep = conf >= CONF_MIN
     kp0, kp1 = kp0[keep], kp1[keep]
     if len(kp0) < 8:
         return None
-    xr_a, s_a = _zncc_xr(la, ra, kp0); xr_b, s_b = _zncc_xr(lb, rb, kp1)
+    xr_a, s_a = _zncc_xr(la, ra, kp0)
+    xr_b, s_b = _zncc_xr(lb, rb, kp1)
     ok = (np.isfinite(xr_a) & np.isfinite(xr_b) & (s_a >= ZNCC_MIN) & (s_b >= ZNCC_MIN))
     if ok.sum() < 8:
         return None
@@ -185,6 +213,11 @@ def _loftr_anchors(fa, fb):
 # ---- SP+LG anchor source ----------------------------------------------------
 _sp_cache = {}
 def _sp_stereo(frame):
+    """SuperPoint+LightGlue stereo features for one frame (cache capped at 8 frames).
+
+    Returns (pts_l, pts_r, left_features, row_map) where row_map[left_kp_index]
+    is the stereo-inlier row for that keypoint, or -1 if it has no stereo match.
+    """
     if frame in _sp_cache:
         return _sp_cache[frame]
     img_l, img_r = read_images(frame)
@@ -207,6 +240,12 @@ def _sp_stereo(frame):
     return _sp_cache[frame]
 
 def _splg_anchors(fa, fb):
+    """SuperPoint+LightGlue anchor matches between frames fa and fb.
+
+    Stereo-matches each frame with SP+LG, matches the two left images, keeps
+    pairs that are stereo inliers at both ends, triangulates, and RANSAC-verifies.
+    Returns an anchor dict or None.
+    """
     pl_a, pr_a, f_a, rm_a = _sp_stereo(fa)
     pl_b, pr_b, f_b, rm_b = _sp_stereo(fb)
     if len(pl_a) < 8 or len(pl_b) < 8:
@@ -216,7 +255,8 @@ def _splg_anchors(fa, fb):
     for m in pairs:
         ra, rb = rm_a[m.queryIdx], rm_b[m.trainIdx]
         if ra >= 0 and rb >= 0:
-            qa.append(ra); qb.append(rb)
+            qa.append(ra)
+            qb.append(rb)
     if len(qa) < 8:
         return None
     qa, qb = np.array(qa), np.array(qb)
@@ -234,6 +274,12 @@ def _splg_anchors(fa, fb):
                 pr_b=B_r[sel], X_a=X_a[sel], n=len(sel), thr=thr)
 
 def _merge_anchors(lo, sp, fa, fb):
+    """Union the LoFTR and SP+LG anchor sets for a pair.
+
+    Drops SP+LG points within DEDUP_PX of a LoFTR point, caps the total at
+    MAX_PER_PAIR, and attaches a 'stats' dict. Returns the merged anchor dict,
+    or None if both sources are empty.
+    """
     if lo is None and sp is None:
         return None
     if lo is None or sp is None:
@@ -259,8 +305,8 @@ def _merge_anchors(lo, sp, fa, fb):
         anc['stats']['n_used'] = len(anc['X_a'])
     return anc
 
-# chain_cache maps (fa,fb) -> anchor dict or None
 def pair_anchors(fa, fb, chain_cache):
+    """Merged LoFTR+SP+LG anchors for one (fa, fb) pair, memoised in chain_cache."""
     key = (fa, fb)
     if key in chain_cache:
         return chain_cache[key]
@@ -272,11 +318,16 @@ def pair_anchors(fa, fb, chain_cache):
 
 # ---- bundle solving ---------------------------------------------------------
 def _chain_nodes(kf_a, kf_b, seg):
+    """Split [kf_a, kf_b] into ~seg-frame segment boundaries (both ends included)."""
     n = kf_b - kf_a
     k = max(1, int(round(n / seg)))
     return [kf_a + int(round(i * n / k)) for i in range(k + 1)]
 
 def _inject(graph, initial, info, fa, fb, anc, tid_start, noise):
+    """Add each anchor as one landmark + two stereo factors (on fa and fb).
+
+    Returns the number of anchors injected.
+    """
     pose_fa = initial.atPose3(info['cam_keys'][fa])
     n = 0
     for i in range(len(anc['X_a'])):
@@ -291,6 +342,7 @@ def _inject(graph, initial, info, fa, fb, anc, tid_start, noise):
     return n
 
 def _make_noise(sigma):
+    """Isotropic stereo noise (sigma px) wrapped in a Huber robust kernel."""
     base = gtsam.noiseModel.Diagonal.Sigmas(np.array([sigma] * 3))
     return gtsam.noiseModel.Robust.Create(
         gtsam.noiseModel.mEstimator.Huber.Create(HUBER), base)

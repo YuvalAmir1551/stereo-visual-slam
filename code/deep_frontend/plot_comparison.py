@@ -28,6 +28,7 @@ with open(f"{SCRATCH}/frontend_comparison.json") as f:
     per_frame = json.load(f)
 
 def series(method, key):
+    """Return (frames, values) arrays for one front-end and metric key, skipping records whose value is None."""
     xs = [r['frame'] for r in per_frame[method] if r[key] is not None]
     ys = [r[key] for r in per_frame[method] if r[key] is not None]
     return np.array(xs), np.array(ys)
@@ -66,6 +67,7 @@ except FileNotFoundError:
 GAPS = sorted({r['gap'] for r in gaps_data['AKAZE']})
 
 def gap_stats(method):
+    """Return per-gap arrays (mean consensus, median rotation error, median location error, failure %) for one front-end."""
     cons, ang, loc, fails = [], [], [], []
     for g in GAPS:
         rs = [r for r in gaps_data[method] if r['gap'] == g]

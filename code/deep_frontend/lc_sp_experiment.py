@@ -13,7 +13,7 @@ Acceptance rule is kept semantically identical: RANSAC inliers must be
 equals kf_i's stereo-inlier count because best-match emits one match
 per query descriptor).
 """
-import os, sys, os, time, pickle
+import os, sys, time, pickle
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 import numpy as np
@@ -53,6 +53,7 @@ sp_feats = {}    # kf -> LightGlue feature dict of the LEFT image
 rowmap = {}      # kf -> array: left-kp index -> stereo-inlier row (or -1)
 
 def build_sp_features():
+    """Extract SuperPoint+LightGlue stereo features for every keyframe into the RAM caches (kf_feats, sp_feats, rowmap)."""
     t0 = time.time()
     for k, kf in enumerate(keyframes):
         img_l, img_r = read_images(kf)
@@ -87,7 +88,8 @@ def consensus_sp(kf_n, kf_i):
         ri = rowmap[kf_i][m.queryIdx]
         rn = rowmap[kf_n][m.trainIdx]
         if ri >= 0 and rn >= 0:
-            q.append(ri); t.append(rn)
+            q.append(ri)
+            t.append(rn)
     if len(q) < 4:
         return None
     q, t = np.array(q), np.array(t)
@@ -103,6 +105,7 @@ def consensus_sp(kf_n, kf_i):
 # lc._single_pass, with only the consensus call swapped.
 # ---------------------------------------------------------------------------
 def run_lc_search_sp(graph, result):
+    """Run the multi-pass Mahalanobis-gated loop-closure search using the SP+LG consensus front-end; returns (accepted, result)."""
     loop_edges, accepted, tried = [], [], set()
     nx_g = lc.pose_graph_to_nx(len(keyframes), rel_covs, loop_edges=loop_edges)
     for p in range(lc.MAX_PASSES):
@@ -180,6 +183,7 @@ gt_centres = np.array([camera_center(gt_poses[k]) for k in keyframes])
 gt_R_c2w = [gt_poses[k][:, :3].T for k in keyframes]
 
 def eval_traj(accepted):
+    """Build and optimize the pose graph with the given accepted loop closures, returning (centres, location errors, rotation errors) vs GT."""
     graph, initial = build_pose_graph(keyframes, rel_poses, rel_covs)
     result = lc.optimize(graph, initial)
     for rec in accepted:
@@ -209,8 +213,10 @@ np.savez(f"{SCRATCH}/lc_eval.npz",
          ang_no=ang_no, ang_ak=ang_ak, ang_sp=ang_sp)
 
 def lc_stats(accepted, label):
+    """Print summary statistics (count, median inliers, median inlier%, kf pairs) for a set of accepted loop closures."""
     if not accepted:
-        print(f"{label}: 0 LCs"); return
+        print(f"{label}: 0 LCs")
+        return
     inl = np.array([r['inliers'] for r in accepted])
     pct = np.array([100.0 * r['inliers'] / r['cross_pre'] for r in accepted])
     pairs = sorted({(r['kf_i'], r['kf_n']) for r in accepted})

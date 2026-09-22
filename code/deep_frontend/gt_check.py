@@ -36,6 +36,7 @@ with open(LC_CACHE, 'rb') as f:
     keyframes = pickle.load(f)['keyframes']
 
 def stereo_classical(img_l, img_r, det):
+    """Extract and stereo-match features with detector det, returning left keypoints/descriptors, right keypoints and stereo-inlier matches."""
     kp_l, des_l = extract_features(img_l, detector=det)
     kp_r, des_r = extract_features(img_r, detector=det)
     m = match_descriptors(des_l, des_r, detector=det)
@@ -44,14 +45,17 @@ def stereo_classical(img_l, img_r, det):
     return kp_l, des_l, kp_r, inl
 
 def pose_classical(det, kf_a, kf_b):
-    il_a, ir_a = read_images(kf_a); il_b, ir_b = read_images(kf_b)
+    """Estimate the relative pose kf_a -> kf_b with classical detector det via consensus matching and RANSAC-PnP; returns (Rt, n_inliers)."""
+    il_a, ir_a = read_images(kf_a)
+    il_b, ir_b = read_images(kf_b)
     kl0, dl0, kr0, in0 = stereo_classical(il_a, ir_a, det)
     kl1, dl1, kr1, in1 = stereo_classical(il_b, ir_b, det)
     cross = match_descriptors(dl0, dl1, detector=det)
     i0, i1 = consensus_matches(in0, in1, cross)
     if len(i0) < 8:
         return None, len(i0)
-    m0 = [in0[k] for k in i0]; m1_ = [in1[k] for k in i1]
+    m0 = [in0[k] for k in i0]
+    m1_ = [in1[k] for k in i1]
     pl0, pr0 = pts_from_matches(kl0, kr0, m0)
     pl1, pr1 = pts_from_matches(kl1, kr1, m1_)
     X0 = triangulate_cv2(P_left, P_right, pl0, pr0)
@@ -61,6 +65,7 @@ def pose_classical(det, kf_a, kf_b):
 
 _sp = {}
 def sp_stereo(kf):
+    """Return (cached) SuperPoint left keypoints/features, right keypoints and stereo-inlier matches for keyframe kf."""
     if kf in _sp:
         return _sp[kf]
     img_l, img_r = read_images(kf)
@@ -73,13 +78,15 @@ def sp_stereo(kf):
     return _sp[kf]
 
 def pose_sp(kf_a, kf_b):
+    """Estimate the relative pose kf_a -> kf_b with SuperPoint+LightGlue via consensus matching and RANSAC-PnP; returns (Rt, n_inliers)."""
     kl0, f0, kr0, in0 = sp_stereo(kf_a)
     kl1, f1, kr1, in1 = sp_stereo(kf_b)
     cross = match_features_lightglue(f0, f1)
     i0, i1 = consensus_matches(in0, in1, cross)
     if len(i0) < 8:
         return None, len(i0)
-    m0 = [in0[k] for k in i0]; m1_ = [in1[k] for k in i1]
+    m0 = [in0[k] for k in i0]
+    m1_ = [in1[k] for k in i1]
     pl0, pr0 = pts_from_matches(kl0, kr0, m0)
     pl1, pr1 = pts_from_matches(kl1, kr1, m1_)
     X0 = triangulate_cv2(P_left, P_right, pl0, pr0)
@@ -88,6 +95,7 @@ def pose_sp(kf_a, kf_b):
     return Rt, int(mask.sum()) if mask is not None else 0
 
 def rot_diff(Ra, Rb):
+    """Return the rotation angle in degrees between rotation matrices Ra and Rb."""
     rvec, _ = cv2.Rodrigues(Ra @ Rb.T)
     return float(np.degrees(np.linalg.norm(rvec)))
 
@@ -120,6 +128,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sus = [r for r in rows if r['suspect'] and r['n'] == 4]
 ctl = [r for r in rows if not r['suspect'] and r['n'] == 4]
 def agg(rs, key):
+    """Return the median over records rs of the 'spread' value or, otherwise, each record's median vs-GT rotation error."""
     return np.median([r[key] if key == 'spread' else np.median(list(r['errs'].values())) for r in rs])
 print(f"\nSUSPECT (n={len(sus)}): median spread {agg(sus,'spread'):.2f} deg, "
       f"median vs-GT {agg(sus,'gt'):.2f} deg")

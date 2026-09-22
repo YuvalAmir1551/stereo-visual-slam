@@ -74,6 +74,7 @@ for j, (n, i) in enumerate(pos_pairs):
 print(f"Oracle LCs verified: {len(oracle_lcs)}/{len(pos_pairs)}")
 
 def eval_traj(lc_list, pose_getter):
+    """Build and optimize the pose graph with the given loop-closure factors, returning (centres, location errors, rotation errors) vs GT."""
     graph, initial = build_pose_graph(keyframes, rel_poses, rel_covs)
     result = lc.optimize(graph, initial)
     for rec in lc_list:
