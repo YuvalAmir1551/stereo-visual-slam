@@ -15,7 +15,7 @@ venv/
 .vscode/
 .idea/
 
-# Report build tooling (not part of the submission)
+# Report build tooling (not part of the public project)
 code/project_analysis_heavy.py
 code/project_analysis_light.py
 code/project_report_build.py
@@ -23,3 +23,6 @@ code/project_report_build.py
 # Report / course PDFs — kept locally, not published
 docs/*.pdf
 docs/**/*.pdf
+
+# Regenerated demo figures (the committed showcase set is docs/project_figures/)
+docs/figures/
