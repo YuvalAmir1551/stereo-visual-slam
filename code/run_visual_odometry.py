@@ -1,7 +1,6 @@
 """PnP-RANSAC relative motion, supporter filtering, full-sequence tracking."""
 
 import os
-import time
 import random
 import cv2
 import numpy as np
@@ -10,10 +9,7 @@ from matplotlib.patches import ConnectionPatch
 
 from dataset import read_images, read_cameras, read_poses
 from features import (
-    extract_features,
     match_descriptors,
-    rectified_stereo_filter,
-    consensus_matches,
     pts_from_matches,
 )
 from geometry import (
@@ -135,7 +131,7 @@ def initial_pnp(K, m_right, consensus, rng):
         camera_center(Rt_left1),                               # left1
         camera_center(compose_extrinsics(Rt_left1, m_right)),  # right1
     ])
-    print(f"  Camera centres (in left0 coords):")
+    print("  Camera centres (in left0 coords):")
     for name, c in zip(['left0', 'right0', 'left1', 'right1'], centers):
         print(f"    {name}: ({c[0]:+.3f}, {c[1]:+.3f}, {c[2]:+.3f})")
 

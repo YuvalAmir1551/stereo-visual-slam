@@ -190,7 +190,7 @@ def plot_loop_closure_results(keyframes, rel_poses, rel_covs, accepted):
     # ----- (2) Final trajectory: with vs without LC vs GT -----
     fig, ax = plt.subplots(figsize=(11, 11))
     ax.plot(cent_no[:, 0], cent_no[:, 2], '-', color='steelblue',
-            linewidth=2, label=f'pose graph WITHOUT loop closures')
+            linewidth=2, label='pose graph WITHOUT loop closures')
     ax.plot(cent_with[:, 0], cent_with[:, 2], '--', color='crimson',
             linewidth=1.8, label=f'pose graph WITH {n_lc} loop closures')
     ax.plot(gt_centres[:, 0], gt_centres[:, 2], ':', color='orange',
@@ -233,7 +233,7 @@ def plot_loop_closure_results(keyframes, rel_poses, rel_covs, accepted):
     ax.grid(alpha=0.3); ax.legend()
     _save(fig, 'uncertainty')
 
-    print(f'\nSummary:')
+    print('\nSummary:')
     print(f'  Loop closures accepted: {n_lc}')
     print(f'  Median abs error: {np.median(err_no):.2f} m  →  '
           f'{np.median(err_with):.2f} m')

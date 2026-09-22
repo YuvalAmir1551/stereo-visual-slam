@@ -9,8 +9,6 @@ marginals.
 """
 
 import os
-import pickle
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import gtsam
@@ -21,7 +19,6 @@ from geometry import camera_center
 from tracking_database import TrackingDB
 from bundle import (
     stereo_calibration, select_keyframes_in_calm_frames,
-    build_bundle_window, optimize_bundle,
     compute_feature_sizes,
     cam_key,
     conditional_cov, solve_bundle, solve_all_bundles,
@@ -71,7 +68,7 @@ def first_bundle_covariance(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     print(f'    t = {np.array_str(t, precision=4, suppress_small=True)}')
     print(f'    ||t|| = {np.linalg.norm(t):.4f} m')
 
-    print(f'\n  Relative covariance (6×6, order = rot[3] | trans[3]):')
+    print('\n  Relative covariance (6×6, order = rot[3] | trans[3]):')
     with np.printoptions(precision=2, suppress=False, formatter={'float': '{: 0.2e}'.format}):
         print(rel_cov)
     sigma_diag = np.sqrt(np.diag(rel_cov))
