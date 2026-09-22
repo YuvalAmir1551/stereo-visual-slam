@@ -1,4 +1,4 @@
-"""Consensus Matching — Feature detection, matching, and significance testing."""
+"""Feature detection, descriptor matching, and the ratio test on a KITTI stereo pair."""
 
 import random
 import cv2
@@ -77,8 +77,8 @@ def plot_rejected_match(img_left, img_right, kp_left, kp_right, match, zoom=60):
     ax1.set_ylabel('y (pixels)')
 
 
-def q1(img_left, img_right):
-    """Q1.1: Detect keypoints and display them on both images."""
+def detect_and_show_keypoints(img_left, img_right):
+    """Detect keypoints and display them on both images."""
     kp_left, desc_left = extract_features(img_left, detector=DETECTOR, n_features=N_FEATURES)
     kp_right, desc_right = extract_features(img_right, detector=DETECTOR, n_features=N_FEATURES)
 
@@ -88,16 +88,16 @@ def q1(img_left, img_right):
     return kp_left, desc_left, kp_right, desc_right
 
 
-def q2(desc_left):
-    """Q1.2: Print the descriptors of the first two features."""
+def show_descriptors(desc_left):
+    """Print the descriptors of the first two features."""
     print("First descriptor (left image):")
     print(desc_left[0])
     print("\nSecond descriptor (left image):")
     print(desc_left[1])
 
 
-def q3(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
-    """Q1.3: Match descriptors and present 20 random matches."""
+def match_and_show(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
+    """Match descriptors and present 20 random matches."""
     knn_matches = match_descriptors_knn(desc_left, desc_right, detector=DETECTOR, k=2)
     best_matches = [m for m, _ in knn_matches]
     print(f"Total matches: {len(best_matches)}")
@@ -105,8 +105,8 @@ def q3(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
                  n_display=20, title='Random matches (no filtering)')
 
 
-def q4(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
-    """Q1.4: Apply ratio test, show filtered matches, find a correct rejected match."""
+def run_ratio_test(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
+    """Apply ratio test, show filtered matches, find a correct rejected match."""
     knn_matches = match_descriptors_knn(desc_left, desc_right, detector=DETECTOR, k=2)
     accepted, rejected = apply_ratio_test(knn_matches, ratio=RATIO_THRESHOLD)
 
@@ -145,28 +145,28 @@ def q4(img_left, img_right, kp_left, desc_left, kp_right, desc_right):
 
 
 def main():
-    """Run all questions for Exercise 1."""
+    """Run the feature-matching demo on the first stereo pair."""
     img_left, img_right = read_images(0)
 
     print("=" * 60)
-    print("Q1.1 — Keypoint Detection")
+    print("Keypoint Detection")
     print("=" * 60)
-    kp_left, desc_left, kp_right, desc_right = q1(img_left, img_right)
+    kp_left, desc_left, kp_right, desc_right = detect_and_show_keypoints(img_left, img_right)
 
     print("\n" + "=" * 60)
-    print("Q1.2 — Feature Descriptors")
+    print("Feature Descriptors")
     print("=" * 60)
-    q2(desc_left)
+    show_descriptors(desc_left)
 
     print("\n" + "=" * 60)
-    print("Q1.3 — Descriptor Matching")
+    print("Descriptor Matching")
     print("=" * 60)
-    q3(img_left, img_right, kp_left, desc_left, kp_right, desc_right)
+    match_and_show(img_left, img_right, kp_left, desc_left, kp_right, desc_right)
 
     print("\n" + "=" * 60)
-    print("Q1.4 — Significance Test (Ratio Test)")
+    print("Significance Test (Ratio Test)")
     print("=" * 60)
-    q4(img_left, img_right, kp_left, desc_left, kp_right, desc_right)
+    run_ratio_test(img_left, img_right, kp_left, desc_left, kp_right, desc_right)
 
     plt.show()
 

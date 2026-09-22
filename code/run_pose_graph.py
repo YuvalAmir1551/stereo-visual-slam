@@ -1,12 +1,11 @@
 """Pose graph from bundle adjustment results.
 
-q1 — Extract the relative pose + conditional covariance between every
-     consecutive pair of keyframes (using the per-bundle optimisation
-     marginals). Plot the first bundle's frames with their conditional
-     covariances.
-q2 — Build a pose graph (BetweenFactorPose3 chain + gauge prior) using the
-     extracted relatives, optimise it, and plot the keyframe trajectory
-     before / after / with marginals.
+First, extract the relative pose + conditional covariance between every
+consecutive pair of keyframes (using the per-bundle optimisation marginals),
+and plot the first bundle's frames with their conditional covariances. Then
+build a pose graph (BetweenFactorPose3 chain + gauge prior) from the extracted
+relatives, optimise it, and plot the keyframe trajectory before / after / with
+marginals.
 """
 
 import os
@@ -29,7 +28,7 @@ from bundle import (
 )
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
-FIGURES_DIR = os.path.join(DOCS_DIR, 'ex6_figures')
+FIGURES_DIR = os.path.join(DOCS_DIR, 'figures', 'pose_graph')
 TRACKING_DB_BASE = os.path.join(DATA_PATH, 'tracking_db')
 PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
 FEATURE_SIZES_PATH = os.path.join(DATA_PATH, 'feature_sizes.pkl')
@@ -57,11 +56,11 @@ def _plot_pose3_with_remap(ax, pose, P, axis_length=0.5, cov_scale=1.0):
                                   P=new_P)
 
 
-def q1(db, pnp_poses, keyframes, K_stereo, feature_sizes):
-    """Q6.1 — relative pose + cov for the first bundle; 3D plot per-frame cov."""
+def first_bundle_covariance(db, pnp_poses, keyframes, K_stereo, feature_sizes):
+    """relative pose + cov for the first bundle; 3D plot per-frame cov."""
     kf_a, kf_b = keyframes[0], keyframes[1]
     frames = list(range(kf_a, kf_b + 1))
-    print(f'  Q6.1 first bundle: frames {kf_a}..{kf_b}')
+    print(f'  first bundle: frames {kf_a}..{kf_b}')
 
     rel_pose, rel_cov, result, info, marginals = solve_bundle(
         db, pnp_poses, frames, K_stereo, feature_sizes)
@@ -80,7 +79,7 @@ def q1(db, pnp_poses, keyframes, K_stereo, feature_sizes):
 
     # 3D plot: every frame in the bundle, with its CONDITIONAL covariance
     # given c_start fixed (Schur per frame).
-    COV_VIS_NSIGMA = 30  # σ-multiplier — matches the Q6.2 ellipse scale
+    COV_VIS_NSIGMA = 30  # σ-multiplier — matches the ellipse scale
     fig = plt.figure(figsize=(9, 7))
     ax = fig.add_subplot(111, projection='3d')
     kf_a_key = info['cam_keys'][kf_a]
@@ -96,15 +95,15 @@ def q1(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     ax.set_xlabel('X (m)', labelpad=8)
     ax.set_ylabel('Z (m)', labelpad=8)
     ax.set_zlabel('Y (m)', labelpad=8)
-    ax.set_title('Q6.1 — first bundle frames with conditional covariance')
+    ax.set_title('first bundle frames with conditional covariance')
     gtsam_plot.set_axes_equal(fig.number)
     fig.subplots_adjust(left=0.05, right=0.92, top=0.95, bottom=0.05)
-    fig.savefig(os.path.join(FIGURES_DIR, 'q6_1_first_bundle_3d.png'),
+    fig.savefig(os.path.join(FIGURES_DIR, 'first_bundle_3d.png'),
                 dpi=150, pad_inches=0.4)
 
 
-def q2(db, pnp_poses, keyframes, K_stereo, feature_sizes):
-    """Q6.2 — build pose graph from all bundles, optimise, plot."""
+def build_and_optimize_pose_graph(db, pnp_poses, keyframes, K_stereo, feature_sizes):
+    """build pose graph from all bundles, optimise, plot."""
     n_kf = len(keyframes)
     n_bundles = n_kf - 1
 
@@ -162,9 +161,9 @@ def q2(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     ax.scatter([0], [0], c='black', s=80, marker='s', zorder=5, label='c_0')
     ax.set_xlabel('X (m)'); ax.set_ylabel('Z — forward (m)')
     ax.set_aspect('equal'); ax.grid(alpha=0.3)
-    ax.set_title('Q6.2 — pose-graph trajectory')
+    ax.set_title('pose-graph trajectory')
     ax.legend()
-    _save(fig, 'q6_2_trajectory')
+    _save(fig, 'trajectory')
 
     # Marginal covariance ellipses on the optimised trajectory + GT overlay.
     marginals = gtsam.Marginals(graph, result)
@@ -190,9 +189,9 @@ def q2(db, pnp_poses, keyframes, K_stereo, feature_sizes):
     ax.scatter([0], [0], c='black', s=80, marker='s', zorder=5, label='c_0')
     ax.set_xlabel('X (m)'); ax.set_ylabel('Z — forward (m)')
     ax.set_aspect('equal'); ax.grid(alpha=0.3)
-    ax.set_title('Q6.2 — keyframes with marginal covariances')
+    ax.set_title('keyframes with marginal covariances')
     ax.legend()
-    _save(fig, 'q6_2_final_with_cov')
+    _save(fig, 'final_with_cov')
 
 
 def main():
@@ -218,11 +217,11 @@ def main():
     )
     print(f'Keyframes: {len(keyframes)}')
 
-    print('\nQ6.1')
-    q1(db, pnp_poses, keyframes, K_stereo, feature_sizes)
+    print('\nFirst-bundle covariance')
+    first_bundle_covariance(db, pnp_poses, keyframes, K_stereo, feature_sizes)
 
-    print('\nQ6.2')
-    q2(db, pnp_poses, keyframes, K_stereo, feature_sizes)
+    print('\nPose-graph optimisation')
+    build_and_optimize_pose_graph(db, pnp_poses, keyframes, K_stereo, feature_sizes)
 
 
 if __name__ == '__main__':

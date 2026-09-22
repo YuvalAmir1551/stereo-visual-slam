@@ -32,7 +32,7 @@ X_MIN_DISPARITY = 0.0   # px — require positive disparity (rejects x_l ≤ x_r
 PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff
 N_FRAMES_FULL = None    # None → use every frame found on disk; integer → cap (debug)
 
-FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs', 'ex3_figures')
+FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs', 'figures', 'visual_odometry')
 
 
 def _save(fig, name):
@@ -44,8 +44,8 @@ def _save(fig, name):
 IDENTITY_RT = np.hstack([np.eye(3), np.zeros((3, 1))])
 
 
-def q1(K, P_left, P_right, kp_l1, kp_r1, stereo1_in, img_shape):
-    """Q3.1 — Triangulate the next stereo pair (frame 1) and visualise the cloud."""
+def triangulate_pair(K, P_left, P_right, kp_l1, kp_r1, stereo1_in, img_shape):
+    """Triangulate the next stereo pair (frame 1) and visualise the cloud."""
     pts_l, pts_r = pts_from_matches(kp_l1, kp_r1, stereo1_in)
     X1 = triangulate_linear_lsq(P_left, P_right, pts_l, pts_r)
     print(f"Frame 1: {len(stereo1_in)} stereo inliers → {len(X1)} 3D points")
@@ -53,13 +53,13 @@ def q1(K, P_left, P_right, kp_l1, kp_r1, stereo1_in, img_shape):
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection='3d')
     plot_3d_world(X1, ax=ax, K=K, img_shape=img_shape,
-                  title='Q3.1 — Point cloud of stereo pair 1')
+                  title='Point cloud of stereo pair 1')
     fig.tight_layout()
-    _save(fig, 'q3_1_pair1_pointcloud')
+    _save(fig, 'pair1_pointcloud')
 
 
-def q2(img_l0, img_l1, kp_l0, kp_l1, cross, n_display=30):
-    """Q3.2 — Match features between left0 and left1; show a random subset as connecting lines."""
+def plot_cross_matches(img_l0, img_l1, kp_l0, kp_l1, cross, n_display=30):
+    """Match features between left0 and left1; show a random subset as connecting lines."""
     print(f"Cross-frame matches (left0 ↔ left1): {len(cross)}")
     if not cross:
         return
@@ -86,8 +86,8 @@ def q2(img_l0, img_l1, kp_l0, kp_l1, cross, n_display=30):
             xyB=pt1, coordsB=ax1.transData,
             color=c, linewidth=0.8, alpha=0.85))
 
-    fig.suptitle(f'Q3.2 — Cross-frame matches  ({len(sample)} shown of {len(cross)})')
-    _save(fig, 'q3_2_cross_matches')
+    fig.suptitle(f'Cross-frame matches  ({len(sample)} shown of {len(cross)})')
+    _save(fig, 'cross_matches')
 
 
 def _plot_four_cameras_topdown(centers_4, labels, title, save_name):
@@ -108,11 +108,11 @@ def _plot_four_cameras_topdown(centers_4, labels, title, save_name):
     _save(fig, save_name)
 
 
-def q3(K, m_right, consensus, rng):
-    """Q3.3 — PnP from 4 consensus matches; derive T from left0 to left1; plot 4 cameras."""
+def initial_pnp(K, m_right, consensus, rng):
+    """PnP from 4 consensus matches; derive T from left0 to left1; plot 4 cameras."""
     n = len(consensus['X0'])
     if n < 4:
-        print(f"Q3.3 skipped — only {n} consensus matches available.")
+        print(f"PnP skipped — only {n} consensus matches available.")
         return None
 
     sel = rng.choice(n, 4, replace=False)
@@ -120,11 +120,11 @@ def q3(K, m_right, consensus, rng):
     pix_sample = consensus['pts_l1'][sel]
     Rt_left1 = solve_pnp(X_sample, pix_sample, K, flags=cv2.SOLVEPNP_AP3P)
     if Rt_left1 is None:
-        print("Q3.3 — PnP failed on the chosen 4 points; pick another seed.")
+        print("PnP failed on the chosen 4 points; pick another seed.")
         return None
 
     R, t = Rt_left1[:, :3], Rt_left1[:, 3]
-    print("Q3.3 — initial PnP on 4 consensus matches:")
+    print("initial PnP on 4 consensus matches:")
     print(f"  R = \n{R}")
     print(f"  t = {t}")
     print(f"  ||t|| = {np.linalg.norm(t):.3f} m   (expected ≈ inter-frame baseline)")
@@ -140,8 +140,8 @@ def q3(K, m_right, consensus, rng):
         print(f"    {name}: ({c[0]:+.3f}, {c[1]:+.3f}, {c[2]:+.3f})")
 
     _plot_four_cameras_topdown(centers, ['left0', 'right0', 'left1', 'right1'],
-                               'Q3.3 — Four-camera positions (top-down)',
-                               'q3_3_four_cameras')
+                               'Four-camera positions (top-down)',
+                               'four_cameras')
     return Rt_left1
 
 
@@ -168,27 +168,27 @@ def _draw_two_class_on_images(img0, img1, pts0, pts1, mask, label_pos, label_neg
     _save(fig, save_name)
 
 
-def q4(K, m_right, consensus, Rt_left1, img_l0, img_l1):
-    """Q3.4 — Find supporters of the initial T via 4-view reprojection (≤ 2 px each)."""
+def find_supporters(K, m_right, consensus, Rt_left1, img_l0, img_l1):
+    """Find supporters of the initial T via 4-view reprojection (≤ 2 px each)."""
     mask = supporters_mask(consensus['X0'],
                            consensus['pts_l0'], consensus['pts_r0'],
                            consensus['pts_l1'], consensus['pts_r1'],
                            Rt_left1, K, m_right, threshold=PIX_THRESHOLD)
     n_sup = int(mask.sum())
-    print(f"Q3.4 — Supporters of initial T: {n_sup} / {len(mask)} "
+    print(f"Supporters of initial T: {n_sup} / {len(mask)} "
           f"({100.0 * n_sup / max(1, len(mask)):.1f}%)")
 
     _draw_two_class_on_images(
         img_l0, img_l1,
         consensus['pts_l0'], consensus['pts_l1'],
         mask, label_pos='supporter', label_neg='non-supporter',
-        title='Q3.4 — Supporters (orange) vs non-supporters (cyan) of the initial T',
-        save_name='q3_4_supporters')
+        title='Supporters (orange) vs non-supporters (cyan) of the initial T',
+        save_name='supporters')
     return mask
 
 
-def q5(K, P_left, P_right, m_right, consensus, img_l0, img_l1, img_shape, rng):
-    """Q3.5 — RANSAC-PnP; transform pair-0 cloud by T; plot clouds and inliers/outliers."""
+def ransac_and_plot(K, P_left, P_right, m_right, consensus, img_l0, img_l1, img_shape, rng):
+    """RANSAC-PnP; transform pair-0 cloud by T; plot clouds and inliers/outliers."""
     Rt_left1, mask = ransac_pnp(
         consensus['X0'],
         consensus['pts_l0'], consensus['pts_r0'],
@@ -197,9 +197,9 @@ def q5(K, P_left, P_right, m_right, consensus, img_l0, img_l1, img_shape, rng):
     )
     n_in = int(mask.sum())
     n = len(mask)
-    print(f"Q3.5 — RANSAC-PnP: {n_in} / {n} inliers "
+    print(f"RANSAC-PnP: {n_in} / {n} inliers "
           f"({100.0 * n_in / max(1, n):.1f}%)")
-    assert Rt_left1 is not None, "Q3.5 — RANSAC produced no valid hypothesis"
+    assert Rt_left1 is not None, "RANSAC produced no valid hypothesis"
     R, t = Rt_left1[:, :3], Rt_left1[:, 3]
     print(f"  Refined translation in left0 coords: ({t[0]:+.3f}, {t[1]:+.3f}, {t[2]:+.3f})  "
           f"||t|| = {np.linalg.norm(t):.3f} m")
@@ -237,29 +237,29 @@ def q5(K, P_left, P_right, m_right, consensus, img_l0, img_l1, img_shape, rng):
     ax.set_ylabel('Z — forward (m)')
     ax.set_zlabel('Y (m, +down)')
     ax.view_init(elev=15, azim=-75)
-    ax.set_title('Q3.5 — Pair 1 (blue) and pair 0 after T (orange) in left1 coords')
+    ax.set_title('Pair 1 (blue) and pair 0 after T (orange) in left1 coords')
     ax.legend(loc='upper right', fontsize=9)
     fig.tight_layout()
-    _save(fig, 'q3_5_two_pointclouds')
+    _save(fig, 'two_pointclouds')
 
     _draw_two_class_on_images(
         img_l0, img_l1,
         consensus['pts_l0'], consensus['pts_l1'],
         mask, label_pos='inlier', label_neg='outlier',
-        title='Q3.5 — RANSAC inliers (orange) vs outliers (cyan)',
-        save_name='q3_5_inliers_outliers')
+        title='RANSAC inliers (orange) vs outliers (cyan)',
+        save_name='inliers_outliers')
 
     return Rt_left1, mask
 
 
-def q6(K, P_left, P_right, m_right):
-    """Q3.6 — Track the whole movie, plot estimated and ground-truth trajectories."""
+def track_full_sequence(K, P_left, P_right, m_right):
+    """Track the whole movie, plot estimated and ground-truth trajectories."""
     # Auto-detect frame count if the user did not cap N_FRAMES_FULL.
     from dataset import DATA_PATH
     img_dir = os.path.join(DATA_PATH, 'image_0')
     n_avail = sum(1 for f in os.listdir(img_dir) if f.endswith('.png'))
     n_frames = N_FRAMES_FULL if N_FRAMES_FULL is not None else n_avail
-    print(f"Q3.6 — Tracking {n_frames} frames (sequence 00 has {n_avail} on disk).")
+    print(f"Tracking {n_frames} frames (sequence 00 has {n_avail} on disk).")
 
     Rt_seq, elapsed = track_sequence(n_frames, K, P_left, P_right, m_right)
     est_positions = np.array([camera_center(Rt) for Rt in Rt_seq])
@@ -274,9 +274,9 @@ def q6(K, P_left, P_right, m_right):
 
     fig, ax = plt.subplots(figsize=(11, 11))
     plot_trajectory_xz(est_positions, gt=gt_positions, ax=ax,
-                       title=(f'Q3.6 — Left-camera trajectory in left0 coords  '
+                       title=(f'Left-camera trajectory in left0 coords  '
                               f'({n_frames} frames, tracking took {elapsed:.0f}s)'))
-    _save(fig, 'q3_6_trajectory')
+    _save(fig, 'trajectory')
 
 
 def main():
@@ -287,16 +287,16 @@ def main():
     img_l1, img_r1 = read_images(1)
     img_shape = img_l0.shape
 
-    # Feature extraction and stereo matching for both pairs (shared by Q3.1–Q3.5).
+    # Feature extraction and stereo matching for both pairs.
     kp_l0, des_l0, kp_r0, s0_in = _stereo_features(img_l0, img_r0)
     kp_l1, des_l1, kp_r1, s1_in = _stereo_features(img_l1, img_r1)
 
-    print("Q3.1")
-    q1(K, P_left, P_right, kp_l1, kp_r1, s1_in, img_shape)
+    print("Triangulate stereo pair 1")
+    triangulate_pair(K, P_left, P_right, kp_l1, kp_r1, s1_in, img_shape)
 
-    print("\nQ3.2")
+    print("\nCross-frame matches")
     cross = match_descriptors(des_l0, des_l1, DETECTOR)
-    q2(img_l0, img_l1, kp_l0, kp_l1, cross)
+    plot_cross_matches(img_l0, img_l1, kp_l0, kp_l1, cross)
 
     consensus = _build_consensus(kp_l0, kp_r0, kp_l1, kp_r1,
                                  s0_in, s1_in, cross, P_left, P_right)
@@ -304,18 +304,18 @@ def main():
 
     rng = np.random.default_rng(0)
 
-    print("\nQ3.3")
-    Rt_init = q3(K, m2, consensus, rng)
+    print("\nInitial PnP")
+    Rt_init = initial_pnp(K, m2, consensus, rng)
 
     if Rt_init is not None:
-        print("\nQ3.4")
-        q4(K, m2, consensus, Rt_init, img_l0, img_l1)
+        print("\nSupporters")
+        find_supporters(K, m2, consensus, Rt_init, img_l0, img_l1)
 
-        print("\nQ3.5")
-        q5(K, P_left, P_right, m2, consensus, img_l0, img_l1, img_shape, rng)
+        print("\nRANSAC-PnP")
+        ransac_and_plot(K, P_left, P_right, m2, consensus, img_l0, img_l1, img_shape, rng)
 
-    print("\nQ3.6")
-    q6(K, P_left, P_right, m2)
+    print("\nFull-sequence tracking")
+    track_full_sequence(K, P_left, P_right, m2)
 
     plt.show()
 

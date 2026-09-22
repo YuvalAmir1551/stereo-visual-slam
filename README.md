@@ -12,9 +12,6 @@ wide-baseline anchor step that **halves the open-loop drift**.
 ![GTSAM](https://img.shields.io/badge/GTSAM-factor%20graphs-0A7E8C)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> Built for the Technion course **SLAM — Video Navigation (67604)** as a
-> semester-long project, then cleaned up here for public reference.
-
 <p align="center">
   <img src="docs/project_figures/fig05_trajectories.png" width="70%"
        alt="Estimated trajectories vs. ground truth on KITTI sequence 00" />
@@ -71,13 +68,13 @@ the deep-learning anchor step independently halves the open-loop drift
 (14.5 m → 7.2 m) before any loop closure.
 
 <p align="center">
-  <img src="docs/ex7_figures/q7_5_trajectory_with_without.png" width="48%"
-       alt="Trajectory with and without loop closure" />
+  <img src="docs/project_figures/fig11_abs_pg_no_lc_error.png" width="48%"
+       alt="Absolute location error without loop closure" />
   <img src="docs/project_figures/fig12_abs_pg_lc_error.png" width="48%"
-       alt="Absolute location error along the sequence, with loop closure" />
+       alt="Absolute location error with loop closure" />
 </p>
-<p align="center"><em>Left: the pose-graph trajectory before/after loop closure.
-Right: absolute location error along the sequence after loop closure.</em></p>
+<p align="center"><em>Absolute location error along the sequence, before (left)
+and after (right) loop closure.</em></p>
 
 ## Deep-learning front-end study
 
@@ -127,11 +124,11 @@ point that only *uses* the shared library modules:
 │   ├── bundle.py             # keyframe selection, bundle windows, GTSAM helpers
 │   ├── loop_closure.py       # Mahalanobis scoring, consensus match, mini-bundle
 │   ├── plot.py               # shared 3D-world plotting conventions
-│   ├── project_figures.py    # renders the report figures
+│   ├── project_figures.py    # renders the summary figures
 │   ├── demo_*.py, run_*.py    # the seven stage entry points (matching → loop closure)
 │   └── deep_frontend/        # deep-learning front-end study (self-contained)
 ├── dataset/                  # KITTI data — not tracked (see below)
-└── docs/                     # generated figures (report PDFs are kept local)
+└── docs/                     # rendered summary figures (docs/project_figures/)
 ```
 
 ## Getting started
@@ -171,7 +168,7 @@ variable (defaults to `00`).
 
 ### 3. Run
 
-Each exercise runs standalone from the `code/` directory:
+Each stage runs standalone from the `code/` directory:
 
 ```bash
 cd code

@@ -1,11 +1,8 @@
-"""Final project report figures.
+"""Figures summarising the SLAM pipeline results.
 
-Reads the analysis data produced by ``project_analysis_heavy.py`` /
-``project_analysis_light.py`` (cached under ``<dataset>/report_data/``) and
-renders every figure of the project report into ``docs/project_figures/``.
-
-Each ``figNN_*`` function creates exactly one report figure; the report cites
-figures as ``project_figures.py:<line of the figNN function>``.
+Reads cached analysis data (under ``<dataset>/report_data/``) and renders every
+summary figure into ``docs/project_figures/``. Each ``figNN_*`` function creates
+exactly one figure.
 """
 import os
 import numpy as np
@@ -19,12 +16,12 @@ DATA_DIR = os.path.join(DATA_PATH, 'report_data')
 FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs',
                            'project_figures')
 
-# Categorical palette (fixed role -> hue assignment across the report)
+# Categorical palette (fixed role -> hue assignment across the figures)
 C_PNP = '#2a78d6'      # blue    — PnP estimation
 C_BA = '#eda100'       # yellow  — bundle adjustment
 C_PG = '#4a3aa7'       # violet  — pose graph without LC
 C_LC = '#e34948'       # red     — pose graph with LC
-C_GT = '#008300'       # green   — ground truth (per submission spec)
+C_GT = '#008300'       # green   — ground truth
 C_2ND = '#1baf7a'      # aqua    — second series (right image / after-opt)
 INK, INK2 = '#0b0b0b', '#52514e'
 

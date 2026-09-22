@@ -23,7 +23,7 @@ PIX_THRESHOLD = 2.0     # px — per-image supporter reprojection cutoff
 N_FRAMES_FULL = None    # None → use every frame found on disk; integer → cap (debug)
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
-FIGURES_DIR = os.path.join(DOCS_DIR, 'ex4_figures')
+FIGURES_DIR = os.path.join(DOCS_DIR, 'figures', 'feature_tracking')
 DB_BASE = os.path.join(DATA_PATH, 'tracking_db')
 
 def _save(fig, name):
@@ -134,8 +134,8 @@ def _track_lengths(db):
                      if len(db.frames(tid)) >= 2])
 
 
-def q2(db):
-    """Q4.2 — Tracking statistics (excluding trivial length-1 tracks)."""
+def track_statistics(db):
+    """Tracking statistics (excluding trivial length-1 tracks)."""
     track_lens = _track_lengths(db)
     per_frame_counts = np.array([len(db.tracks(fid)) for fid in db.all_frames()])
 
@@ -148,8 +148,8 @@ def q2(db):
     return track_lens, per_frame_counts
 
 
-def q3(db, min_length=6, max_length=8):
-    """Q4.3 — Pick a track of length ≥ min_length; show the full LEFT frame +
+def plot_track_cutouts(db, min_length=6, max_length=8):
+    """Pick a track of length ≥ min_length; show the full LEFT frame +
     the tight 20×20 cutout, both from the LEFT camera, for every frame.
     """
     candidates = [tid for tid in db.all_tracks()
@@ -200,11 +200,11 @@ def q3(db, min_length=6, max_length=8):
 
     fig.suptitle(f'track #{tid}, frame #{frames[0]}', fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    _save(fig, 'q4_3_track_cutouts')
+    _save(fig, 'track_cutouts')
 
 
-def q4(db):
-    """Q4.4 — Connectivity graph: count of tracks alive in both frame i and frame i+1."""
+def plot_connectivity(db):
+    """Connectivity graph: count of tracks alive in both frame i and frame i+1."""
     outgoing = []
     for fid in range(db.frame_num() - 1):
         a = set(db.tracks(fid))
@@ -218,40 +218,40 @@ def q4(db):
                label=f'mean = {outgoing.mean():.0f}')
     ax.set_xlabel('Frame index')
     ax.set_ylabel('Outgoing tracks')
-    ax.set_title('Q4.4 — Connectivity (tracks present in both frame i and i+1)')
+    ax.set_title('Connectivity (tracks present in both frame i and i+1)')
     ax.legend(loc='upper right')
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    _save(fig, 'q4_4_connectivity')
+    _save(fig, 'connectivity')
 
 
-def q5(inliers_per_frame):
-    """Q4.5 — RANSAC inlier percentage per frame transition."""
+def plot_inlier_percentage(inliers_per_frame):
+    """RANSAC inlier percentage per frame transition."""
     fig, ax = plt.subplots(figsize=(11, 4.5))
     ax.plot(inliers_per_frame, color='steelblue', linewidth=0.7)
     ax.axhline(inliers_per_frame.mean(), color='red', linestyle='--',
                label=f'mean = {inliers_per_frame.mean():.1f}%')
     ax.set_xlabel('Frame transition i → i+1')
     ax.set_ylabel('Inlier %')
-    ax.set_title('Q4.5 — RANSAC inlier percentage per frame transition')
+    ax.set_title('RANSAC inlier percentage per frame transition')
     ax.legend(loc='lower right')
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    _save(fig, 'q4_5_inlier_pct')
+    _save(fig, 'inlier_pct')
 
 
-def q6(track_lens):
-    """Q4.6 — Track-length histogram on a log y-scale."""
+def plot_track_length_histogram(track_lens):
+    """Track-length histogram on a log y-scale."""
     fig, ax = plt.subplots(figsize=(10, 4.5))
     bins = np.arange(2, track_lens.max() + 2)
     ax.hist(track_lens, bins=bins, color='steelblue', edgecolor='white')
     ax.set_yscale('log')
     ax.set_xlabel('Track length')
     ax.set_ylabel('Number of tracks (log scale)')
-    ax.set_title('Q4.6 — Track-length histogram (excluding length 1)')
+    ax.set_title('Track-length histogram (excluding length 1)')
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    _save(fig, 'q4_6_track_length_hist')
+    _save(fig, 'track_length_hist')
 
 
 def _triangulate_from_frame(link, fid, K, m_right, poses_gt):
@@ -279,11 +279,10 @@ def _reproject_to_track(X_world, frames, db, tid, K, m_right, poses_gt):
     return np.array(err_l), np.array(err_r)
 
 
-def q7(db, min_length=10, rng=None):
-    """Q4.7 — Triangulate from the LAST frame's stereo (using GT cameras), project to every frame.
+def plot_reprojection_error(db, min_length=10, rng=None):
+    """Triangulate from the LAST frame's stereo (using GT cameras), project to every frame.
 
-    Also runs the "what if we triangulated from the FIRST frame instead" comparison —
-    the discussion-question half of 4.7.
+    Also runs the "what if we triangulated from the FIRST frame instead" comparison.
     """
     K, _, m2 = read_cameras()
     poses_gt = read_poses()
@@ -299,13 +298,13 @@ def q7(db, min_length=10, rng=None):
     frames = db.frames(tid)
     print(f'  Track #{tid}: length {len(frames)}, frames {frames[0]}..{frames[-1]}')
 
-    # Triangulate from the LAST frame's stereo pair (as the spec asks).
+    # Triangulate from the LAST frame's stereo pair.
     X_last = _triangulate_from_frame(db.link(frames[-1], tid), frames[-1], K, m2, poses_gt)
     err_l, err_r = _reproject_to_track(X_last, frames, db, tid, K, m2, poses_gt)
 
     # Distance from the reference (last) frame: 0 at the reference, growing
     # backwards through the track. Plot in that order so the curve reads
-    # 0 at the left and grows to the right (matches the spec figure).
+    # 0 at the left and grows to the right.
     dist = np.arange(len(frames))[::-1]
     order = np.argsort(dist)
     fig, ax = plt.subplots(figsize=(8, 4.5))
@@ -316,7 +315,7 @@ def q7(db, min_length=10, rng=None):
     ax.set_title(f'PnP - projection error vs track length (track #{tid})')
     ax.grid(alpha=0.3); ax.legend()
     fig.tight_layout()
-    _save(fig, 'q4_7_reprojection_error')
+    _save(fig, 'reprojection_error')
 
     print(f'  Track #{tid}: ref=LAST(frame {frames[-1]}); '
           f'err at ref={err_l[-1]:.3f}/{err_r[-1]:.3f}; '
@@ -355,23 +354,23 @@ def main():
         db.serialize(DB_BASE)
         np.save(inliers_npy, inliers_per_frame)
 
-    print('\nQ4.2 — Tracking statistics')
-    track_lens, _ = q2(db)
+    print('\nTracking statistics')
+    track_lens, _ = track_statistics(db)
 
-    print('\nQ4.3 — Length-≥6 track visualisation')
-    q3(db)
+    print('\nLength-≥6 track visualisation')
+    plot_track_cutouts(db)
 
-    print('\nQ4.4 — Connectivity graph')
-    q4(db)
+    print('\nConnectivity graph')
+    plot_connectivity(db)
 
-    print('\nQ4.5 — Inlier % per frame transition')
-    q5(inliers_per_frame)
+    print('\nInlier % per frame transition')
+    plot_inlier_percentage(inliers_per_frame)
 
-    print('\nQ4.6 — Track-length histogram')
-    q6(track_lens)
+    print('\nTrack-length histogram')
+    plot_track_length_histogram(track_lens)
 
-    print('\nQ4.7 — Reprojection error along a length-≥10 track')
-    q7(db)
+    print('\nReprojection error along a length-≥10 track')
+    plot_reprojection_error(db)
 
     plt.show()
 

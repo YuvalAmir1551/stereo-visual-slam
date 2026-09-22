@@ -1,10 +1,10 @@
-"""Loop closure detection for pose graph SLAM (VAN Ex7).
+"""Loop closure detection for pose graph SLAM.
 
-Spec-mandated flow:
-  7.1  Shortest-path Σ_n|i estimate + Mahalanobis pre-filter
-  7.2  RANSAC-PnP consensus match between distant keyframes
-  7.3  Two-frame mini-bundle → conditional Σ of c_n | c_i
-  7.4  BetweenFactorPose3 → pose graph re-optimisation
+Pipeline:
+  1. Shortest-path Σ_n|i estimate + Mahalanobis pre-filter
+  2. RANSAC-PnP consensus match between distant keyframes
+  3. Two-frame mini-bundle → conditional Σ of c_n | c_i
+  4. BetweenFactorPose3 → pose graph re-optimisation
 
 Within each pass, the SET of consensus-matched pairs is snapshotted at
 pass start (compute Mahalanobis for every eligible (n, i), keep those
@@ -52,7 +52,7 @@ def optimize(graph, initial):
 
 
 # ===========================================================================
-#  Pose-graph → networkx helpers  (7.1)
+#  Pose-graph → networkx helpers
 # ===========================================================================
 def pose_graph_to_nx(n_keyframes, rel_covs, loop_edges=()):
     """Undirected networkx graph; edges carry the bundle's 6×6 cov as the
@@ -69,9 +69,9 @@ def pose_graph_to_nx(n_keyframes, rel_covs, loop_edges=()):
 
 
 def shortest_path_cov(nx_graph, src, dst):
-    """Course-spec Dijkstra with matrix-valued (6×6) edge weights.
+    """Dijkstra with matrix-valued (6×6) edge weights.
 
-    From VAN 07 § "Shortest Path" (David Arnon slides):
+    Shortest path over covariance edges:
       • Σ[s] = 0₆; Σ[v] = ∞·I initially (nodes not yet reached).
       • EXTRACT-MIN picks the vertex with smallest √det(Σ[u]).
       • RELAX(u, v): if √det(Σ[u] + w(u,v)) < √det(Σ[v]),
@@ -187,7 +187,7 @@ def load_or_build_kf_features(keyframes):
 
 
 # ===========================================================================
-#  Q7.2 — consensus match between two (distant) keyframes
+#  Consensus match between two (distant) keyframes
 # ===========================================================================
 def loop_consensus_match(kf_n, kf_i, kf_features, K, m_right, P_left, P_right):
     """RANSAC-PnP between two distant keyframes.
@@ -218,7 +218,7 @@ def loop_consensus_match(kf_n, kf_i, kf_features, K, m_right, P_left, P_right):
 
 
 # ===========================================================================
-#  Q7.3 — mini-bundle for a loop pair
+#  Mini-bundle for a loop pair
 # ===========================================================================
 def loop_mini_bundle(kf_n, kf_i, kf_features, cross, q, t, mask,
                      K_stereo, Rt_rel_init):

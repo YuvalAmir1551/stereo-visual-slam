@@ -1,5 +1,5 @@
 """Wide-baseline anchor bundle refinement — the adopted deep-learning
-improvement (report section 4.3), applied one bundle window at a time.
+improvement, applied one bundle window at a time.
 
 WHAT PROBLEM THIS SOLVES
 ------------------------
@@ -60,7 +60,7 @@ NOTE — interaction with the Link.size refactor: the x2 track down-weight below
 works by doubling `feature_sizes`, which build_bundle_window uses only as a
 FALLBACK. After the refactor that stores keypoint size on each Link,
 build_bundle_window prefers `link.size`, so the down-weight is bypassed on a
-size-carrying DB. The reported campaign numbers were produced on the pre-refactor
+size-carrying DB. The numbers above were produced on the pre-refactor
 DB (links without size), where the down-weight was active. To re-run this method
 on the migrated DB and reproduce it, the down-weight must be reapplied through
 the Link sizes (or via a track-sigma scale on build_bundle_window).

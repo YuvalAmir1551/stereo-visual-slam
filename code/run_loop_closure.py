@@ -3,7 +3,7 @@
 Orchestration only — algorithm primitives (Mahalanobis pre-filter,
 consensus match, mini-bundle, LC search) live in `loop_closure.py`.
 This file builds the initial pose graph, calls the LC search, and
-renders Q7.2 / Q7.5 plots.
+renders the consensus-match and result plots.
 
 State persisted across runs:
   loop_closures.pkl     — list of accepted (n, i, rel_pose, rel_cov, n_inliers)
@@ -31,7 +31,7 @@ from loop_closure import (
 
 # ----- Paths -----
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
-FIGURES_DIR = os.path.join(DOCS_DIR, 'ex7_figures')
+FIGURES_DIR = os.path.join(DOCS_DIR, 'figures', 'loop_closure')
 TRACKING_DB_BASE = os.path.join(DATA_PATH, 'tracking_db')
 PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
 RELATIVES_CACHE = os.path.join(DATA_PATH, 'pose_graph_relatives.pkl')
@@ -81,9 +81,9 @@ def _replay_to_milestone(keyframes, rel_poses, rel_covs, lc_list, k_stop):
 
 
 # ===========================================================================
-#  Q7.2 — consensus match visualisation for one accepted LC
+#  consensus match visualisation for one accepted LC
 # ===========================================================================
-def q2_visualise(record, kf_features, K, m_right, P_left, P_right):
+def plot_consensus_match(record, kf_features, K, m_right, P_left, P_right):
     """Re-run the consensus match for one accepted LC and plot the matches
     with connecting lines between inlier keypoints (outliers shown as red
     dots, no line)."""
@@ -94,7 +94,7 @@ def q2_visualise(record, kf_features, K, m_right, P_left, P_right):
     res = loop_consensus_match(kf_n, kf_i, kf_features, K, m_right,
                                P_left, P_right)
     if res is None:
-        print('Q7.2 viz: consensus match re-run failed unexpectedly'); return
+        print('consensus match re-run failed unexpectedly'); return
     _Rt, mask, _cross, q, t = res
     _, pts_l_i, _ = kf_features[kf_i]
     _, pts_l_n, _ = kf_features[kf_n]
@@ -132,18 +132,18 @@ def q2_visualise(record, kf_features, K, m_right, P_left, P_right):
             xyB=pb, coordsB=ax_n.transData,
             color='cyan', linewidth=0.6, alpha=0.7))
 
-    fig.suptitle(f'Q7.2 — consensus match c_{record["n"]} ↔ c_{record["i"]}  '
+    fig.suptitle(f'consensus match c_{record["n"]} ↔ c_{record["i"]}  '
                  f'({int(mask.sum())} inliers of {len(mask)}, '
                  f'{n_lines} inlier links shown)')
     fig.tight_layout()
-    _save(fig, 'q7_2_consensus_match')
+    _save(fig, 'consensus_match')
 
 
 # ===========================================================================
-#  Q7.5 — full deliverable plots
+#  full deliverable plots
 # ===========================================================================
-def q5_plots(keyframes, rel_poses, rel_covs, accepted):
-    """Q7.5 — snapshots + GT/uncertainty/error comparisons."""
+def plot_loop_closure_results(keyframes, rel_poses, rel_covs, accepted):
+    """snapshots + GT/uncertainty/error comparisons."""
     gt_poses = read_poses()
     gt_centres = np.array([camera_center(gt_poses[k]) for k in keyframes])
 
@@ -183,9 +183,9 @@ def q5_plots(keyframes, rel_poses, rel_covs, accepted):
         ax.set_title(f'after {k_stop} loop closures')
         ax.set_xlabel('X (m)'); ax.set_ylabel('Z (m)')
         ax.set_aspect('equal'); ax.grid(alpha=0.3); ax.legend(loc='lower left')
-    fig.suptitle('Q7.5 — pose-graph evolution (with 10σ ellipses)')
+    fig.suptitle('pose-graph evolution (with 10σ ellipses)')
     fig.tight_layout()
-    _save(fig, 'q7_5_snapshots')
+    _save(fig, 'snapshots')
 
     # ----- (2) Final trajectory: with vs without LC vs GT -----
     fig, ax = plt.subplots(figsize=(11, 11))
@@ -198,8 +198,8 @@ def q5_plots(keyframes, rel_poses, rel_covs, accepted):
     ax.scatter([0], [0], c='black', s=80, marker='s', zorder=5, label='c_0')
     ax.set_xlabel('X (m)'); ax.set_ylabel('Z (m)')
     ax.set_aspect('equal'); ax.grid(alpha=0.3); ax.legend()
-    ax.set_title('Q7.5 — final trajectory vs ground truth')
-    _save(fig, 'q7_5_trajectory_with_without')
+    ax.set_title('final trajectory vs ground truth')
+    _save(fig, 'trajectory_with_without')
 
     # ----- (3) Absolute location error -----
     err_no = np.linalg.norm(cent_no - gt_centres, axis=1)
@@ -209,11 +209,11 @@ def q5_plots(keyframes, rel_poses, rel_covs, accepted):
     ax.plot(keyframes, err_with, color='crimson', label='with LC')
     ax.set_xlabel('keyframe (absolute frame id)')
     ax.set_ylabel('absolute location error (m)')
-    ax.set_title(f'Q7.5 — abs. location error  '
+    ax.set_title(f'abs. location error  '
                  f'(median {np.median(err_no):.2f}m → {np.median(err_with):.2f}m, '
                  f'max {err_no.max():.2f}m → {err_with.max():.2f}m)')
     ax.grid(alpha=0.3); ax.legend()
-    _save(fig, 'q7_5_abs_error')
+    _save(fig, 'abs_error')
 
     # ----- (4) Uncertainty size: √det(Σ_t) per keyframe -----
     # Same metric as the pose-graph Dijkstra edge weight — volume of the
@@ -229,11 +229,11 @@ def q5_plots(keyframes, rel_poses, rel_covs, accepted):
     ax.set_yscale('log')
     ax.set_xlabel('keyframe (absolute frame id)')
     ax.set_ylabel(r'uncertainty size  $\sqrt{\det\Sigma_t}$  (m³, log scale)')
-    ax.set_title('Q7.5 — location uncertainty size')
+    ax.set_title('location uncertainty size')
     ax.grid(alpha=0.3); ax.legend()
-    _save(fig, 'q7_5_uncertainty')
+    _save(fig, 'uncertainty')
 
-    print(f'\nQ7.5 summary:')
+    print(f'\nSummary:')
     print(f'  Loop closures accepted: {n_lc}')
     print(f'  Median abs error: {np.median(err_no):.2f} m  →  '
           f'{np.median(err_with):.2f} m')
@@ -270,7 +270,7 @@ def main():
     rel_poses, rel_covs = d['rel_poses'], d['rel_covs']
     print(f'Loaded {len(rel_poses)} bundle relatives from cache.')
 
-    # ----- Q7.2–7.4 main loop (cached) -----
+    # ----- loop-closure main loop (cached) -----
     accepted = None
     if os.path.exists(LC_CACHE):
         with open(LC_CACHE, 'rb') as f:
@@ -280,7 +280,7 @@ def main():
             print(f'\nLoaded {len(accepted)} loop closures from cache.')
 
     if accepted is None:
-        print('\nQ7.2–7.4 — running loop closure search…')
+        print('\nRunning loop closure search…')
         graph, initial = build_pose_graph(keyframes, rel_poses, rel_covs)
         result = optimize(graph, initial)
         _, accepted, _ = run_loop_closure_search(
@@ -290,18 +290,18 @@ def main():
             pickle.dump({'keyframes': keyframes, 'accepted': accepted}, f)
         print(f'Saved {len(accepted)} loop closures to {LC_CACHE}')
 
-    # ----- Q7.2 visualisation of one accepted match -----
+    # ----- consensus-match visualisation of one accepted match -----
     if accepted:
         kf_features = load_or_build_kf_features(keyframes)
         # Pick the LC with the largest |n - i| as the most visually striking.
         best = max(accepted, key=lambda r: r['n'] - r['i'])
-        print(f"\nQ7.2 viz — c_{best['n']}↔c_{best['i']} "
+        print(f"\nconsensus-match viz: c_{best['n']}↔c_{best['i']} "
               f"({best['inliers']} inliers, mah {best['mahalanobis']:.1f})")
-        q2_visualise(best, kf_features, K, m2, P_left, P_right)
+        plot_consensus_match(best, kf_features, K, m2, P_left, P_right)
 
-    # ----- Q7.5 deliverable plots -----
-    print('\nQ7.5 — building deliverable plots')
-    q5_plots(keyframes, rel_poses, rel_covs, accepted or [])
+    # ----- deliverable plots -----
+    print('\nbuilding deliverable plots')
+    plot_loop_closure_results(keyframes, rel_poses, rel_covs, accepted or [])
 
 
 if __name__ == '__main__':

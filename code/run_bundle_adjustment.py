@@ -1,8 +1,8 @@
 """Bundle adjustment of small windows along the KITTI trajectory.
 
-q1 — single-track sanity check (StereoCamera backproject/project + factor error)
-q3 — first bundle window (factor graph, LM, error breakdown, plots)
-q4 — all bundle windows + chaining to global frame-0 coordinates
+Three stages: a single-track sanity check (StereoCamera backproject/project +
+factor error), the first bundle window (factor graph, LM, error breakdown,
+plots), then all bundle windows chained into global frame-0 coordinates.
 """
 
 import os
@@ -27,7 +27,7 @@ from bundle import (
 
 
 DOCS_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs')
-FIGURES_DIR = os.path.join(DOCS_DIR, 'ex5_figures')
+FIGURES_DIR = os.path.join(DOCS_DIR, 'figures', 'bundle_adjustment')
 
 TRACKING_DB_BASE = os.path.join(DATA_PATH, 'tracking_db')
 PNP_POSES_PATH = os.path.join(DATA_PATH, 'pnp_poses.npy')
@@ -41,8 +41,8 @@ def _save(fig, name):
     fig.savefig(os.path.join(FIGURES_DIR, name + '.png'), dpi=150, bbox_inches='tight')
 
 
-def q1(db, pnp_poses, K_stereo, rng=None):
-    """Q5.1 — Single-track sanity check.
+def sanity_check_track(db, pnp_poses, K_stereo, rng=None):
+    """Single-track sanity check.
 
     Pick a length-≥10 track, build a StereoCamera per frame using the PnP
     GLOBAL poses, triangulate from the last frame, project to all frames, plot
@@ -53,14 +53,14 @@ def q1(db, pnp_poses, K_stereo, rng=None):
     candidates = [tid for tid in db.all_tracks() if len(db.frames(tid)) >= 10]
     tid = int(rng.choice(candidates))
     frames = db.frames(tid)
-    print(f'  Q5.1 track #{tid}: length {len(frames)}, frames '
+    print(f'  track #{tid}: length {len(frames)}, frames '
           f'{frames[0]}..{frames[-1]}')
 
     # Build StereoCameras in GLOBAL (frame-0 world) coords.
     stereo_cams = {fid: stereo_camera(Rt_to_gtsam_pose(pnp_poses[fid]), K_stereo)
                    for fid in frames}
 
-    # Triangulate from LAST frame (per spec).
+    # Triangulate from LAST frame.
     last_fid = frames[-1]
     last_link = db.link(last_fid, tid)
     X_world = stereo_cams[last_fid].backproject(link_to_stereo_point(last_link))
@@ -104,15 +104,15 @@ def q1(db, pnp_poses, K_stereo, rng=None):
     axes[0].plot(dist[order], reproj_err[order], color='steelblue')
     axes[0].set_xlabel('distance from reference (frames)')
     axes[0].set_ylabel('reprojection error (pixels, L2)')
-    axes[0].set_title(f'Q5.1 — reprojection error  (track #{tid})')
+    axes[0].set_title(f'reprojection error  (track #{tid})')
     axes[0].grid(alpha=0.3)
     axes[1].plot(dist[order], factor_err[order], color='orange')
     axes[1].set_xlabel('distance from reference (frames)')
     axes[1].set_ylabel('factor error')
-    axes[1].set_title(f'Q5.1 — factor error  (track #{tid})')
+    axes[1].set_title(f'factor error  (track #{tid})')
     axes[1].grid(alpha=0.3)
     fig.tight_layout()
-    _save(fig, 'q5_1_track_errors')
+    _save(fig, 'track_errors')
 
 
 def _largest_initial_error_factor(graph, initial, projection_factors):
@@ -163,11 +163,11 @@ def _draw_projection_vs_measurement(fid, link, proj_stereo, save_name, title):
     _save(fig, save_name)
 
 
-def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
-    """Q5.3 — First bundle window: keyframes[0] → keyframes[1] inclusive."""
+def first_bundle_window(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
+    """First bundle window: keyframes[0] → keyframes[1] inclusive."""
     kf0, kf1 = keyframes[0], keyframes[1]
     frames = list(range(kf0, kf1 + 1))
-    print(f'  Q5.3 first bundle: frames {kf0}..{kf1} ({len(frames)} frames)')
+    print(f'  first bundle: frames {kf0}..{kf1} ({len(frames)} frames)')
 
     graph, initial, info = build_bundle_window(
         db, pnp_poses, frames, K_stereo, feature_sizes=feature_sizes)
@@ -202,8 +202,8 @@ def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
         print(f'    initial proj distance (L/R): {d_l_init:.2f}/{d_r_init:.2f} px')
         _draw_projection_vs_measurement(
             fid, link, proj_init,
-            'q5_3_largest_factor_initial',
-            f'Q5.3 — largest-error factor (initial): frame {fid}, track {tid}, '
+            'largest_factor_initial',
+            f'largest-error factor (initial): frame {fid}, track {tid}, '
             f'err {init_factor_err:.2f}')
     except RuntimeError:
         print('    [initial projection raised Cheirality — skipping plot]')
@@ -218,8 +218,8 @@ def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     print(f'    final proj distance (L/R): {d_l_final:.2f}/{d_r_final:.2f} px')
     _draw_projection_vs_measurement(
         fid, link, proj_final,
-        'q5_3_largest_factor_final',
-        f'Q5.3 — largest-error factor (after BA): frame {fid}, track {tid}, '
+        'largest_factor_final',
+        f'largest-error factor (after BA): frame {fid}, track {tid}, '
         f'err {final_factor_err:.4f}')
 
     # 3D plot — conditional covariance per camera given c0 fixed (the
@@ -270,9 +270,9 @@ def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     ax3d.set_xlabel('X (m, right)')
     ax3d.set_ylabel('Z (m, forward)')
     ax3d.set_zlabel('Y (m, up)')
-    ax3d.set_title('Q5.3 — first bundle (3D, with cov)')
+    ax3d.set_title('first bundle (3D, with cov)')
     gtsam_plot.set_axes_equal(fig.number)
-    _save(fig, 'q5_3_bundle_3d')
+    _save(fig, 'bundle_3d')
 
     # Top-down (X vs Z) — "view-from-above of the scene, with all cameras
     # and points" (spec wording). All 9 cameras of the first bundle as
@@ -293,15 +293,15 @@ def q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
                label=f'cameras (n={len(frames)})', zorder=3)
     ax.set_xlabel('X (m)'); ax.set_ylabel('Z — forward (m)')
     ax.set_aspect('equal'); ax.grid(alpha=0.3)
-    ax.set_title('Q5.3 — first bundle (top-down)')
+    ax.set_title('first bundle (top-down)')
     ax.legend()
-    _save(fig, 'q5_3_bundle_topdown')
+    _save(fig, 'bundle_topdown')
 
 
-def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
-    """Q5.4 — solve every bundle window; chain into global keyframe poses."""
+def run_all_bundles(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
+    """solve every bundle window; chain into global keyframe poses."""
     n_bundles = len(keyframes) - 1
-    print(f'  Q5.4 — solving {n_bundles} bundle windows')
+    print(f'  solving {n_bundles} bundle windows')
 
     relative_kf_Rt = []      # 3x4 world-to-kf_end in kf_start's frame, per bundle
     bundle_internal_Rts = [] # list of dicts: {frame_id -> Rt_rel} per bundle
@@ -332,7 +332,7 @@ def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
             print(f'    {b + 1}/{n_bundles} bundles done in {elapsed:.1f}s '
                   f'({elapsed / (b + 1):.2f}s each)')
 
-    # Spec 5.4 — last bundle diagnostics.
+    # last bundle diagnostics.
     graph_last, result_last, info_last, kf_a_last, kf_b_last = last_bundle_state
     pose_first_last_bundle = result_last.atPose3(info_last['cam_keys'][kf_a_last])
     print(f'\n  Last bundle ({kf_a_last}→{kf_b_last}) — '
@@ -406,9 +406,9 @@ def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     ax.scatter([0], [0], c='black', s=80, marker='s', zorder=5, label='start')
     ax.set_xlabel('X (m)'); ax.set_ylabel('Z — forward (m)')
     ax.set_aspect('equal'); ax.grid(alpha=0.3)
-    ax.set_title('Q5.4 — full trajectory + landmarks (bundle vs ground truth)')
+    ax.set_title('full trajectory + landmarks (bundle vs ground truth)')
     ax.legend()
-    _save(fig, 'q5_4_keyframe_trajectory')
+    _save(fig, 'keyframe_trajectory')
 
 
     # Localization error over time.
@@ -416,11 +416,11 @@ def q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=None):
     fig, ax = plt.subplots(figsize=(11, 4.5))
     ax.plot(keyframes, err, color='steelblue', linewidth=0.9)
     ax.set_xlabel('Frame'); ax.set_ylabel('Localization error (m)')
-    ax.set_title(f'Q5.4 — keyframe localization error '
+    ax.set_title(f'keyframe localization error '
                  f'(final={err[-1]:.2f}m, median={np.median(err):.2f}m, '
                  f'max={err.max():.2f}m)')
     ax.grid(alpha=0.3)
-    _save(fig, 'q5_4_localization_error')
+    _save(fig, 'localization_error')
 
     print(f'\n  Final-pose error: {err[-1]:.2f} m')
     print(f'  Median / max localization error: '
@@ -466,14 +466,14 @@ def main():
     print(f'  Window sizes: min={gaps.min() + 1}, median={int(np.median(gaps)) + 1}, '
           f'max={gaps.max() + 1} frames')
 
-    print('\nQ5.1')
-    q1(db, pnp_poses, K_stereo)
+    print('\nSingle-track sanity check')
+    sanity_check_track(db, pnp_poses, K_stereo)
 
-    print('\nQ5.3')
-    q3(db, pnp_poses, K_stereo, keyframes, feature_sizes=feature_sizes)
+    print('\nFirst bundle window')
+    first_bundle_window(db, pnp_poses, K_stereo, keyframes, feature_sizes=feature_sizes)
 
-    print('\nQ5.4')
-    q4(db, pnp_poses, K_stereo, keyframes, feature_sizes=feature_sizes)
+    print('\nAll bundle windows')
+    run_all_bundles(db, pnp_poses, K_stereo, keyframes, feature_sizes=feature_sizes)
 
     plt.show()
 

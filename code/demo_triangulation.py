@@ -15,9 +15,9 @@ from geometry import triangulate_linear_lsq, triangulate_cv2
 from plot import plot_3d_world
 
 DETECTOR = 'AKAZE'
-Y_THRESHOLD = 2.0          # px — rectified-stereo deviation cutoff (Q2.1, Q2.2)
-Q4_FRAMES = [0, 500, 700]  # frames to triangulate for Q2.4
-FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs', 'ex2_figures')
+Y_THRESHOLD = 2.0          # px — rectified-stereo deviation cutoff
+DEMO_FRAMES = [0, 500, 700]  # frames to triangulate
+FIGURES_DIR = os.path.join(os.path.dirname(__file__), '..', 'docs', 'figures', 'triangulation')
 
 
 def _save(fig, name):
@@ -34,7 +34,7 @@ def plot_y_dev_histogram(dy, threshold=Y_THRESHOLD, bins=80):
                label=f'threshold = {threshold} px')
     ax.set_xlabel('|y_left − y_right|  (pixels)')
     ax.set_ylabel('Number of matches')
-    ax.set_title(f'Q2.1 — Deviation from rectified stereo pattern  (n = {len(dy)})')
+    ax.set_title(f'Deviation from rectified stereo pattern  (n = {len(dy)})')
     ax.legend()
     return fig
 
@@ -69,8 +69,8 @@ def plot_inlier_outlier(img_left, img_right, kp_left, kp_right,
     fig.tight_layout()
     return fig
 
-def q1(kp_left, kp_right, matches):
-    """Q2.1 — Histogram of y-deviations and percent of matches deviating > 2 px.
+def analyze_y_deviation(kp_left, kp_right, matches):
+    """Histogram of y-deviations and percent of matches deviating > 2 px.
 
     On a rectified pair the epipolar lines are horizontal, so corresponding
     points share the same image row. Correct matches therefore concentrate
@@ -83,26 +83,26 @@ def q1(kp_left, kp_right, matches):
           f"({pct_above:.2f}%)")
     print(f"|Δy| stats — median: {np.median(dy):.2f} px, max: {dy.max():.2f} px")
     fig = plot_y_dev_histogram(dy, threshold=Y_THRESHOLD)
-    _save(fig, 'q2_1_y_dev_histogram')
+    _save(fig, 'y_deviation_histogram')
 
 
-def q2(img_left, img_right, kp_left, kp_right, matches):
-    """Q2.2 — Reject matches by rectified-stereo pattern; reasoning about uniform errors.
+def reject_stereo_outliers(img_left, img_right, kp_left, kp_right, matches):
+    """Reject matches by rectified-stereo pattern; reasoning about uniform errors.
 
-    Returns the accepted (inlier) matches for re-use in Q2.3.
+    Returns the accepted (inlier) matches for re-use downstream.
     """
     inliers, outliers, _ = rectified_stereo_filter(
         kp_left, kp_right, matches, y_threshold=Y_THRESHOLD)
     print(f"Inliers: {len(inliers)}, outliers: {len(outliers)}")
 
     fig = plot_inlier_outlier(img_left, img_right, kp_left, kp_right, inliers, outliers,
-                              suptitle='Q2.2 — Inliers (orange) on top of outliers (cyan)')
-    _save(fig, 'q2_2_inliers_outliers')
+                              suptitle='Inliers (orange) on top of outliers (cyan)')
+    _save(fig, 'inliers_outliers')
     return inliers
 
 
-def q3(K, P_left, P_right, kp_left, kp_right, inliers, img_shape):
-    """Q2.3 — Linear-LSQ triangulation vs cv2.triangulatePoints."""
+def compare_triangulation(K, P_left, P_right, kp_left, kp_right, inliers, img_shape):
+    """Linear-LSQ triangulation vs cv2.triangulatePoints."""
     pts_l, pts_r = pts_from_matches(kp_left, kp_right, inliers)
     X_lsq = triangulate_linear_lsq(P_left, P_right, pts_l, pts_r)
     X_cv2 = triangulate_cv2(P_left, P_right, pts_l, pts_r)
@@ -118,9 +118,9 @@ def q3(K, P_left, P_right, kp_left, kp_right, inliers, img_shape):
     plot_3d_world(X_lsq, ax=ax1, K=K, img_shape=img_shape, title='Linear LSQ')
     ax2 = fig.add_subplot(122, projection='3d')
     plot_3d_world(X_cv2, ax=ax2, K=K, img_shape=img_shape, title='OpenCV')
-    fig.suptitle('Q2.3 — Triangulation comparison (Linear LSQ vs OpenCV)')
+    fig.suptitle('Triangulation comparison (Linear LSQ vs OpenCV)')
     fig.tight_layout()
-    _save(fig, 'q2_3_triangulation_compare')
+    _save(fig, 'triangulation_compare')
 
 
 def _draw_matches_3class(ax, img, y_out, x_out, x_in, side):
@@ -149,8 +149,8 @@ def _draw_matches_3class(ax, img, y_out, x_out, x_in, side):
     ax.legend(loc='upper right', fontsize=8)
 
 
-def q4(K, P_left, P_right, img_shape):
-    """Q2.4 — Run match-and-triangulate over a few frames; observe erroneous points.
+def triangulate_across_frames(K, P_left, P_right, img_shape):
+    """Run match-and-triangulate over a few frames; observe erroneous points.
 
     Each frame's figure has three panels:
       • top-left  — left image, matches in 3 classes:
@@ -159,7 +159,7 @@ def q4(K, P_left, P_right, img_shape):
       • top-right — right image, same coloring.
       • bottom    — 3D cloud of the Y-inliers; orange = good, red = X-outlier.
     """
-    for idx in Q4_FRAMES:
+    for idx in DEMO_FRAMES:
         img_l, img_r = read_images(idx)
         kp_l, kp_r, matches = match_stereo_pair(img_l, img_r, detector=DETECTOR)
         inliers, outliers, _ = rectified_stereo_filter(kp_l, kp_r, matches, Y_THRESHOLD)
@@ -189,10 +189,10 @@ def q4(K, P_left, P_right, img_shape):
         plot_3d_world(X, ax=ax_3d, K=K, img_shape=img_shape, title='3D point cloud',
                       highlight_mask=~x_in_mask)
 
-        fig.suptitle(f'Q2.4 — Frame {idx}  (3-class colouring: cyan = Y-out, '
+        fig.suptitle(f'Frame {idx}  (3-class colouring: cyan = Y-out, '
                      f'red = X-out, orange = good)')
         fig.tight_layout()
-        _save(fig, f'q2_4_frame_{idx:04d}')
+        _save(fig, f'frame_{idx:04d}')
 
 
 def main():
@@ -201,14 +201,14 @@ def main():
     img_left, img_right = read_images(0)
     kp_left, kp_right, matches = match_stereo_pair(img_left, img_right, detector=DETECTOR)
 
-    print("Q2.1")
-    q1(kp_left, kp_right, matches)
-    print("\nQ2.2")
-    inliers = q2(img_left, img_right, kp_left, kp_right, matches)
-    print("\nQ2.3")
-    q3(K, P_left, P_right, kp_left, kp_right, inliers, img_shape=img_left.shape)
-    print(f"\nQ2.4 — frames {Q4_FRAMES}")
-    q4(K, P_left, P_right, img_shape=img_left.shape)
+    print("Y-deviation analysis")
+    analyze_y_deviation(kp_left, kp_right, matches)
+    print("\nOutlier rejection")
+    inliers = reject_stereo_outliers(img_left, img_right, kp_left, kp_right, matches)
+    print("\nTriangulation comparison")
+    compare_triangulation(K, P_left, P_right, kp_left, kp_right, inliers, img_shape=img_left.shape)
+    print(f"\nframes {DEMO_FRAMES}")
+    triangulate_across_frames(K, P_left, P_right, img_shape=img_left.shape)
 
     plt.show()
 

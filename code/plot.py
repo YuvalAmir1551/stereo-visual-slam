@@ -8,7 +8,7 @@ Conventions used here (and expected by callers):
     corresponds to −Y. Data values are NOT transformed.
   • Equal physical metre scale on every axis via `set_box_aspect`.
 
-Every exercise that visualises 3D world points should use these helpers
+Every module that visualises 3D world points should use these helpers
 so that figures across the project share the same look.
 """
 
