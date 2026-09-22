@@ -26,3 +26,6 @@ docs/**/*.pdf
 
 # Regenerated demo figures (the committed showcase set is docs/)
 docs/figures/
+
+# Experiment scripts write their JSON results next to themselves — not tracked
+code/deep_frontend/*.json
